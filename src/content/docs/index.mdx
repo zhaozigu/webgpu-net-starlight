@@ -1,0 +1,36 @@
+---
+title: 欢迎来到 WebGPU 学习网站
+description: 全面学习 WebGPU 现代图形编程技术
+template: splash
+hero:
+  tagline: 掌握下一代 Web 图形技术，开启高性能 GPU 编程之旅！
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: 开始学习
+      link: /guides/getting-started/
+      icon: right-arrow
+    - text: WebGPU 官方规范
+      link: https://www.w3.org/TR/webgpu/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## 学习路径
+
+<CardGrid stagger>
+	<Card title="基础概念" icon="rocket">
+		了解 WebGPU 的核心概念、渲染管线和计算着色器基础知识。
+	</Card>
+	<Card title="实战教程" icon="laptop">
+		通过实际项目学习如何创建 3D 图形、进行并行计算和性能优化。
+	</Card>
+	<Card title="API 参考" icon="setting">
+		详细的 WebGPU API 文档，包括所有接口、方法和最佳实践。
+	</Card>
+	<Card title="示例代码" icon="open-book">
+		丰富的代码示例和完整项目，帮助你快速上手 WebGPU 开发。
+	</Card>
+</CardGrid>
