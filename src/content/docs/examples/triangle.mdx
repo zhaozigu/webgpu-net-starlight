@@ -1,0 +1,321 @@
+---
+title: WebGPU 三角形
+description: 这是一个基础的 WebGPU 三角形渲染示例，展示了如何使用 WebGPU API 创建一个简单的图形渲染管道。
+---
+
+import WebGPUCanvas from "../../../components/WebGPUCanvas.astro";
+
+## 实时演示
+
+<WebGPUCanvas
+  title="WebGPU 三角形演示"
+  width={800}
+  height={600}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+    let pos = array<vec2f, 3>(
+        vec2f( 0.0,  0.5),  // 顶部
+        vec2f(-0.5, -0.5),  // 左下
+        vec2f( 0.5, -0.5)   // 右下
+    );
+    return vec4f(pos[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+    return vec4f(1.0, 0.0, 0.0, 1.0); // 红色
+}
+  `}
+/>
+
+## 不同颜色的三角形
+
+<WebGPUCanvas
+  id="triangle-blue"
+  title="蓝色三角形"
+  width={400}
+  height={300}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+    let pos = array<vec2f, 3>(
+        vec2f( 0.0,  0.6),  // 顶部
+        vec2f(-0.6, -0.6),  // 左下
+        vec2f( 0.6, -0.6)   // 右下
+    );
+    return vec4f(pos[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+    return vec4f(0.0, 0.5, 1.0, 1.0); // 蓝色
+}
+  `}
+/>
+
+<WebGPUCanvas
+  id="triangle-green"
+  title="绿色三角形"
+  width={400}
+  height={300}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+    let pos = array<vec2f, 3>(
+        vec2f( 0.0,  0.4),  // 顶部
+        vec2f(-0.4, -0.4),  // 左下
+        vec2f( 0.4, -0.4)   // 右下
+    );
+    return vec4f(pos[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+    return vec4f(0.2, 0.8, 0.2, 1.0); // 绿色
+}
+  `}
+/>
+
+## 代码示例
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebGPU 三角形</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        display: block;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebGPU 三角形示例</h1>
+    <canvas id="webgpu-canvas" width="800" height="600"></canvas>
+
+    <script>
+      async function main() {
+        // 检查 WebGPU 支持
+        if (!navigator.gpu) {
+          throw new Error("WebGPU 不被当前浏览器支持");
+        }
+
+        // 获取 GPU 适配器
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) {
+          throw new Error("无法获取 WebGPU 适配器");
+        }
+
+        // 获取 GPU 设备
+        const device = await adapter.requestDevice();
+
+        // 获取 canvas 和上下文
+        const canvas = document.getElementById("webgpu-canvas");
+        const context = canvas.getContext("webgpu");
+
+        // 配置 canvas 上下文
+        const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+        context.configure({
+          device: device,
+          format: canvasFormat,
+        });
+
+        // 顶点着色器
+        const vertexShaderSource = `
+                @vertex
+                fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+                    let pos = array<vec2f, 3>(
+                        vec2f( 0.0,  0.5),  // 顶部
+                        vec2f(-0.5, -0.5),  // 左下
+                        vec2f( 0.5, -0.5)   // 右下
+                    );
+                    return vec4f(pos[vertexIndex], 0.0, 1.0);
+                }
+            `;
+
+        // 片段着色器
+        const fragmentShaderSource = `
+                @fragment
+                fn fs_main() -> @location(0) vec4f {
+                    return vec4f(1.0, 0.0, 0.0, 1.0); // 红色
+                }
+            `;
+
+        // 创建着色器模块
+        const vertexShader = device.createShaderModule({
+          label: "三角形顶点着色器",
+          code: vertexShaderSource,
+        });
+
+        const fragmentShader = device.createShaderModule({
+          label: "三角形片段着色器",
+          code: fragmentShaderSource,
+        });
+
+        // 创建渲染管道
+        const renderPipeline = device.createRenderPipeline({
+          label: "三角形渲染管道",
+          layout: "auto",
+          vertex: {
+            module: vertexShader,
+            entryPoint: "vs_main",
+          },
+          fragment: {
+            module: fragmentShader,
+            entryPoint: "fs_main",
+            targets: [
+              {
+                format: canvasFormat,
+              },
+            ],
+          },
+          primitive: {
+            topology: "triangle-list",
+          },
+        });
+
+        // 渲染函数
+        function render() {
+          // 获取当前纹理视图
+          const textureView = context.getCurrentTexture().createView();
+
+          // 创建渲染通道编码器
+          const renderPassDescriptor = {
+            label: "三角形渲染通道",
+            colorAttachments: [
+              {
+                view: textureView,
+                clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1.0 },
+                loadOp: "clear",
+                storeOp: "store",
+              },
+            ],
+          };
+
+          // 创建命令编码器
+          const encoder = device.createCommandEncoder({
+            label: "三角形命令编码器",
+          });
+
+          // 开始渲染通道
+          const pass = encoder.beginRenderPass(renderPassDescriptor);
+          pass.setPipeline(renderPipeline);
+          pass.draw(3); // 绘制 3 个顶点
+          pass.end();
+
+          // 提交命令
+          const commandBuffer = encoder.finish();
+          device.queue.submit([commandBuffer]);
+        }
+
+        // 执行渲染
+        render();
+      }
+
+      // 启动应用
+      main().catch((error) => {
+        console.error("WebGPU 初始化失败:", error);
+        document.body.innerHTML += `<p style="color: red;">错误: ${error.message}</p>`;
+      });
+    </script>
+  </body>
+</html>
+```
+
+## 代码解析
+
+### 1. WebGPU 初始化
+
+```javascript
+// 检查浏览器支持
+if (!navigator.gpu) {
+  throw new Error("WebGPU 不被当前浏览器支持");
+}
+
+// 获取适配器和设备
+const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+```
+
+### 2. Canvas 配置
+
+```javascript
+const canvas = document.getElementById("webgpu-canvas");
+const context = canvas.getContext("webgpu");
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
+```
+
+### 3. 着色器定义
+
+**顶点着色器**：定义三角形的三个顶点位置
+
+- 使用 `@builtin(vertex_index)` 获取当前顶点索引
+- 返回顶点在裁剪空间中的位置
+
+**片段着色器**：定义像素颜色
+
+- 返回红色 `vec4f(1.0, 0.0, 0.0, 1.0)`
+
+### 4. 渲染管道
+
+```javascript
+const renderPipeline = device.createRenderPipeline({
+  layout: "auto",
+  vertex: {
+    module: vertexShader,
+    entryPoint: "vs_main",
+  },
+  fragment: {
+    module: fragmentShader,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: {
+    topology: "triangle-list",
+  },
+});
+```
+
+### 5. 渲染执行
+
+1. 获取当前纹理视图
+2. 创建渲染通道描述符
+3. 创建命令编码器
+4. 开始渲染通道并执行绘制
+5. 提交命令到 GPU 队列
+
+## 运行要求
+
+- 支持 WebGPU 的现代浏览器（Chrome 113+, Firefox 实验性支持）
+- 本地服务器环境（由于安全策略，不能直接打开 HTML 文件）
+
+## 扩展练习
+
+1. **修改颜色**：尝试更改片段着色器中的颜色值
+2. **调整大小**：修改顶点坐标来改变三角形的大小和位置
+3. **添加动画**：使用 `requestAnimationFrame` 创建旋转动画
+4. **多个三角形**：绘制多个不同颜色的三角形
+
+## 下一步
+
+学习完这个基础示例后，你可以继续探索：
+
+- [顶点缓冲区](./vertex-buffers)
+- [统一缓冲区](./uniform-buffers)
+- [纹理映射](./textures)
