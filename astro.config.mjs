@@ -7,7 +7,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'WebGPU 学习网站',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/webgpu-net/webgpu-net' }],
+			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/zhaozigu/webgpu-net-starlight' }],
 			sidebar: [
 				{
 					label: '学习指南',
