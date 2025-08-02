@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a documentation site built with Astro and Starlight, focused on WebGPU-related content. The project name "webgpu-net" suggests it's intended to document WebGPU networking or web framework topics.
+This is a Chinese-language WebGPU learning website ("WebGPU 学习网站") built with Astro and Starlight. It serves as a comprehensive educational platform for learning WebGPU graphics programming, featuring interactive examples, tutorials, and API documentation.
 
 ## Commands
 
@@ -18,34 +18,59 @@ This is a documentation site built with Astro and Starlight, focused on WebGPU-r
 
 ## Architecture
 
-- **Framework**: Astro with Starlight (documentation-focused theme)
-- **Package Manager**: pnpm
+- **Framework**: Astro v5.6.1 with Starlight v0.35.2 (documentation-focused theme)
+- **Package Manager**: pnpm (required, not npm/yarn)
 - **Content System**: File-based with `.md` and `.mdx` files in `src/content/docs/`
 - **TypeScript**: Strict configuration extending Astro's recommended settings
-- **Routing**: File-based routing where each file in `src/content/docs/` becomes a route
+- **Interactive Components**: Custom WebGPU canvas component for live demonstrations
 
 ### Key Directories
 
 - `src/content/docs/` - Documentation pages (Markdown/MDX)
+- `src/components/` - Reusable Astro components, including WebGPUCanvas
 - `src/assets/` - Images and static assets for content
 - `public/` - Static files served directly
 - `astro.config.mjs` - Astro and Starlight configuration
 
 ### Content Structure
 
-The site uses Starlight's sidebar configuration with:
-- **Guides** section with manual entries
-- **Reference** section with auto-generated navigation from directory structure
+The site uses Starlight's sidebar configuration with Chinese labels:
+- **学习指南** (Learning Guides) - Manual entries for tutorials
+- **API 参考** (API Reference) - Auto-generated from reference directory
+- **实例** (Examples) - Auto-generated from examples directory with interactive WebGPU demos
+
+### Interactive WebGPU Component
+
+The site features a custom `WebGPUCanvas.astro` component that:
+- Accepts vertex and fragment shader code as props
+- Handles WebGPU initialization and error states
+- Provides live, interactive WebGPU demonstrations
+- Includes proper error handling with Chinese error messages
+- Supports multiple canvas instances on the same page
+
+#### WebGPUCanvas Usage
+
+```astro
+<WebGPUCanvas
+  id="unique-canvas-id"
+  title="演示标题"
+  width={800}
+  height={600}
+  vertexShader={`WGSL vertex shader code`}
+  fragmentShader={`WGSL fragment shader code`}
+/>
+```
 
 ### Configuration
 
-- Main config in `astro.config.mjs` defines site title, social links, and sidebar structure
-- Content collections defined in `src/content.config.ts` using Starlight's schema
-- TypeScript config extends Astro's strict preset
+- Main config in `astro.config.mjs` defines Chinese site title and GitHub social link
+- Content collections use Starlight's schema via `src/content.config.ts`
+- TypeScript extends Astro's strict preset for maximum type safety
 
 ## Development Notes
 
-- Content is written in Markdown/MDX with frontmatter for metadata
-- Images should be placed in `src/assets/` and referenced with relative links
-- Sidebar navigation is configured in `astro.config.mjs`
-- The site uses Starlight components like Card and CardGrid for enhanced layouts
+- All content is in Chinese language, including UI text and error messages
+- WGSL (WebGPU Shading Language) code is embedded directly in MDX files
+- Interactive examples use real WebGPU API calls, requiring WebGPU-compatible browsers
+- Content structure follows educational progression from basic concepts to advanced examples
+- GitHub repository link points to `https://github.com/zhaozigu/webgpu-net-starlight`
