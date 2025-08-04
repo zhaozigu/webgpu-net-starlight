@@ -112,7 +112,52 @@ const encoder = device.createCommandEncoder();
 
 `submit` 方法特别重要，因为它告诉 GPU 要执行什么任务（图形渲染或者通用计算）。调用 `submit` 方法之后，可以通过 `onSubmittedWorkDone` 监测队列。
 
-## 代码
+## Canvas
+
+要在网页上展示渲染的图形，就需要使用 `<canvas>` 元素。需要三个步骤：
+
+1. 在 HTML 中创建 canvas 元素；
+2. 通过 JavaScript 获取该 canvas 元素，例如：选择器；
+3. 通过 canvas 的上下文（context）进行配置；
+
+```html
+<!-- 在 HTML 中创建 canvas 元素 -->
+<canvas id="mycanvas" width="400" height="200"></canvas>
+```
+
+获取 HTML 元素一般可以通过选择器或者 ID：
+
+```js
+// 标签选择器
+const canvas = document.querySelector("canvas");
+// ID 选择器
+const canvas = document.getElementById("mycanvas");
+```
+
+之后就可以给这个 `canvas` 赋予 `webgpu` 的 context：
+
+```js
+const context = canvas.getContext("webgpu");
+```
+
+最后一步，就是完成配置：
+
+```js
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
+```
+
+## 演示
+
+import WebGPUCanvas from "../../../components/FundamentalObject.astro";
+
+<WebGPUCanvas title="基础对象" width={100} height={100} />
+
+### 核心代码
 
 ```javascript
 if (!navigator.gpu) {
@@ -134,5 +179,21 @@ if (info) {
 }
 
 const device = await adapter.requestDevice();
-const encoder = device.createCommandEncoder();
+// const encoder = device.createCommandEncoder();
+
+const canvas = document.getElementById(id);
+if (!canvas) {
+  throw new Error(`No canvas element found: ${id}`);
+}
+
+const context = canvas.getContext("webgpu");
+if (!context) {
+  throw new Error("Failed to get WebGPU context.");
+}
+
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
 ```

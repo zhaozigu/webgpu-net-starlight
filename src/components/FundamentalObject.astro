@@ -1,0 +1,165 @@
+---
+export interface Props {
+  id?: string;
+  width?: number;
+  height?: number;
+  title?: string;
+}
+
+const {
+  id = "webgpu-canvas",
+  width = 800,
+  height = 600,
+  title = "WebGPU 演示",
+} = Astro.props;
+---
+
+<div class="webgpu-demo">
+  <h3>{title}</h3>
+  <canvas id={id} width={width} height={height}></canvas>
+  <div id={`${id}-status`} class="status-info"></div>
+  <div id={`${id}-error`} class="error-message" style="display: none;"></div>
+</div>
+
+<script define:vars={{ id }}>
+  async function initWebGPU() {
+    let msgs = ["<strong>初始化基础对象</strong>"];
+
+    try {
+      // 检查 WebGPU 支持
+      if (!navigator.gpu) {
+        throw new Error(
+          "WebGPU 不被当前浏览器支持。请使用支持 WebGPU 的现代浏览器。"
+        );
+      } else {
+        msgs.push("✓ 支持 WebGPU");
+      }
+
+      // 获取 GPU 适配器
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        throw new Error("无法获取 WebGPU 适配器。");
+      } else {
+        msgs.push("✓ 获取到 GPU 适配器");
+      }
+
+      // 获取 GPU 设备
+      const device = await adapter.requestDevice();
+      msgs.push("✓ 获取到 GPU 设备");
+
+      // 获取 canvas 和上下文
+      const canvas = document.getElementById(id);
+      if (!canvas) {
+        throw new Error(`找不到 canvas 元素: ${id}`);
+      }
+
+      const context = canvas.getContext("webgpu");
+      if (!context) {
+        throw new Error("无法获取 WebGPU 上下文。");
+      } else {
+        msgs.push("✓ 获取到 WebGPU 上下文");
+      }
+
+      // 配置 canvas 上下文
+      const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+      context.configure({
+        device: device,
+        format: canvasFormat,
+      });
+      msgs.push(`✓ 配置完成，格式: ${canvasFormat}`);
+
+      // 显示状态信息
+      displayStatusMessages(msgs);
+    } catch (error) {
+      console.error("WebGPU 初始化失败:", error);
+      const errorElement = document.getElementById(`${id}-error`);
+      if (errorElement) {
+        errorElement.style.display = "block";
+        errorElement.innerHTML = `<strong>错误:</strong> ${error.message}`;
+      }
+
+      // 显示错误状态信息
+      msgs.push(`✗ 错误: ${error.message}`);
+      displayStatusMessages(msgs);
+    }
+  }
+
+  function displayStatusMessages(messages) {
+    const statusElement = document.getElementById(`${id}-status`);
+    if (!statusElement) return;
+
+    const statusHtml = messages
+      .map((message) => `<div class="status-item">${message}</div>`)
+      .join("");
+    statusElement.innerHTML = statusHtml;
+  }
+
+  // 页面加载完成后初始化
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initWebGPU);
+  } else {
+    initWebGPU();
+  }
+</script>
+
+<style>
+  .webgpu-demo {
+    margin: 2rem 0;
+    padding: 1rem;
+    border: 1px solid var(--sl-color-border);
+    border-radius: 8px;
+    background: var(--sl-color-bg-nav);
+  }
+
+  .webgpu-demo h3 {
+    margin: 0 0 1rem 0;
+    color: var(--sl-color-text);
+    font-size: 1.2rem;
+  }
+
+  canvas {
+    display: block;
+    border: 1px solid var(--sl-color-border);
+    border-radius: 4px;
+    background: #2a2a2a;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .error-message {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--sl-color-bg-inline-code);
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 4px;
+    color: var(--sl-color-white);
+    font-size: 0.9rem;
+    border-left: 4px solid #dc2626;
+  }
+
+  .error-message strong {
+    color: #fca5a5;
+  }
+
+  .status-info {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--sl-color-bg-inline-code);
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 4px;
+    color: var(--sl-color-text);
+    font-size: 0.9rem;
+    font-family: monospace;
+  }
+
+  .status-item {
+    padding: 0.2rem 0;
+    color: var(--sl-color-text-accent);
+  }
+
+  .status-item:first-child {
+    font-weight: bold;
+    color: var(--sl-color-white);
+    margin-bottom: 0.5rem;
+  }
+</style>
