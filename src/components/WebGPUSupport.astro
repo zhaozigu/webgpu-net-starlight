@@ -1,0 +1,105 @@
+---
+// WebGPU 支持检测组件
+---
+
+<div class="webgpu-support-check">
+  <div id="webgpu-status" class="status-loading">
+    <span class="icon">⏳</span>
+    <span class="text">检测 WebGPU 支持中...</span>
+  </div>
+</div>
+
+<style>
+  .webgpu-support-check {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin: 1rem 0;
+    background: var(--sl-color-bg-nav);
+  }
+
+  .status-loading {
+    color: var(--sl-color-text-accent);
+  }
+
+  .status-supported {
+    color: var(--sl-color-green);
+  }
+
+  .status-not-supported {
+    color: var(--sl-color-red);
+  }
+
+  .status-error {
+    color: var(--sl-color-orange);
+  }
+
+  .icon {
+    margin-right: 0.5rem;
+    font-size: 1.2em;
+  }
+
+  .text {
+    font-weight: 500;
+  }
+
+  .details {
+    margin-top: 0.5rem;
+    font-size: 0.9em;
+    color: var(--sl-color-text-subtle);
+  }
+</style>
+
+<script>
+  function checkWebGPUSupport() {
+    const statusElement = document.getElementById('webgpu-status');
+    
+    if (!statusElement) return;
+
+    // 检查 navigator.gpu 是否存在
+    if (!navigator.gpu) {
+      statusElement.className = 'status-not-supported';
+      statusElement.innerHTML = `
+        <span class="icon">❌</span>
+        <span class="text">WebGPU 不被当前浏览器支持</span>
+        <div class="details">请使用支持 WebGPU 的浏览器，如 Chrome 113+ 或 Firefox Nightly</div>
+      `;
+      return;
+    }
+
+    // 尝试请求适配器来进一步验证支持
+    navigator.gpu.requestAdapter()
+      .then(adapter => {
+        if (adapter) {
+          statusElement.className = 'status-supported';
+          statusElement.innerHTML = `
+            <span class="icon">✅</span>
+            <span class="text">WebGPU 被当前浏览器支持</span>
+            <div class="details">您可以正常使用本网站的所有 WebGPU 示例</div>
+          `;
+        } else {
+          statusElement.className = 'status-not-supported';
+          statusElement.innerHTML = `
+            <span class="icon">❌</span>
+            <span class="text">无法获取 WebGPU 适配器</span>
+            <div class="details">虽然浏览器支持 WebGPU，但无法访问 GPU 硬件</div>
+          `;
+        }
+      })
+      .catch(error => {
+        statusElement.className = 'status-error';
+        statusElement.innerHTML = `
+          <span class="icon">⚠️</span>
+          <span class="text">WebGPU 检测时发生错误</span>
+          <div class="details">错误信息: ${error.message}</div>
+        `;
+      });
+  }
+
+  // 页面加载完成后执行检测
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkWebGPUSupport);
+  } else {
+    checkWebGPUSupport();
+  }
+</script>

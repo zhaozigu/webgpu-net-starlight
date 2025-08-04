@@ -1,7 +1,11 @@
 ---
-title: WebGPU 入门
+title: 介绍
 description: 开始学习 WebGPU 的第一步指南
+sidebar:
+  order: 1
 ---
+
+import WebGPUSupport from '../../../components/WebGPUSupport.astro';
 
 WebGPU 是下一代 Web 图形 API，提供了现代化的 GPU 访问能力，支持高性能的图形渲染和通用计算。
 
@@ -15,6 +19,8 @@ WebGPU 是一个现代化的 Web 标准，它提供了：
 - **跨平台兼容**：支持桌面和移动设备
 
 ## 浏览器支持
+
+<WebGPUSupport />
 
 目前 WebGPU 在以下浏览器中可用：
 
@@ -43,15 +49,3 @@ const device = await adapter.requestDevice();
 
 console.log('WebGPU 设备已成功初始化！');
 ```
-
-## 下一步
-
-- 学习 [渲染管线基础](/guides/render-pipeline)
-- 了解 [着色器编程](/guides/shaders)
-- 探索 [计算着色器](/guides/compute-shaders)
-
-## 相关资源
-
-- [WebGPU 官方规范](https://www.w3.org/TR/webgpu/)
-- [WebGPU Shading Language (WGSL)](https://www.w3.org/TR/WGSL/)
-- [WebGPU 示例](https://webgpu.github.io/webgpu-samples/)

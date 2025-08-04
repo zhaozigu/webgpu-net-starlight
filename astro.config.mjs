@@ -1,6 +1,6 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
-import starlight from '@astrojs/starlight';
+import { defineConfig } from "astro/config";
+import starlight from "@astrojs/starlight";
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,8 +17,8 @@ export default defineConfig({
       ],
       sidebar: [
         {
-          label: "学习指南",
-          items: [{ label: "WebGPU 入门", slug: "guides/getting-started" }],
+          label: "教程",
+          autogenerate: { directory: "guides" },
         },
         {
           label: "API 参考",

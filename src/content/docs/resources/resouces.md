@@ -5,11 +5,12 @@ description: 官方文档、实例等资源收集
 
 ## 文档
 
-- [WebGPU 标准草案](https://www.w3.org/TR/webgpu/)
-- [WebGPU 着色器语言](https://www.w3.org/TR/WGSL/)，即 WGSL。
-- [MDN 的 WebGPU API 文档](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API)
 - 主流浏览器的 [支持情况](https://caniuse.com/webgpu) 查看
-
+- [WebGPU 官方规范](https://www.w3.org/TR/webgpu/)
+- [WebGPU Shading Language (WGSL)](https://www.w3.org/TR/WGSL/)
+- [MDN 的 WebGPU API 文档](https://developer.mozilla.org/en-US/docs/Web/API/WebGPU_API)
+- [WebGPU 示例](https://webgpu.github.io/webgpu-samples/)
+- 
 ## 框架
 
 - [Babylon.js](https://www.babylonjs.com/) 是一个 Web 渲染引擎，v5.0 之后加入对 WebGPU 的 [支持](https://doc.babylonjs.com/setup/support/webGPU)。
