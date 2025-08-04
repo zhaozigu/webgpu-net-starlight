@@ -1,13 +1,20 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import remarkMath from "remark-math";
+import rehypeMathJax from "rehype-mathjax";
 
 // https://astro.build/config
 export default defineConfig({
   site: "https://www.webgpu.net",
+  markdown: {
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [rehypeMathJax],
+  },
   integrations: [
     starlight({
       title: "WebGPU 学习网站",
+      customCss: ['./src/mathjax.css'],
       social: [
         {
           icon: "github",
