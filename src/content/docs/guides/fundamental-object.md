@@ -84,6 +84,34 @@ if (info) {
 const device = await adapter.requestDevice();
 ```
 
+## GPUDevice
+
+[`GPUDevice`](https://www.w3.org/TR/webgpu/#gpudevice) 作为客户 GPU 的 **逻辑连接**，在 WebGPU 的开发中是一个**中心角色**。
+
+## GPUCommandEncoder
+
+`GPUDevice` 最重要的方法是 `createCommandEncoder`。这个对象用于创建和存储要发送给 GPU 的命令。
+
+```js
+const encoder = device.createCommandEncoder();
+```
+
+以下三个方法是最重要的：
+
+- `beginRenderPass`：编码 render pass 用于执行图形渲染
+- `beginComputePass`：编码 compute pass 用于执行计算任务
+- `finish`：返回包含编码器命令的命令缓冲区
+
+## GPUQueue
+
+`GPUDevice` 有一个重要的属性是 `queue`，提供了 `GPUQueue`。为了执行 GPU 操作，需要调用 `GPUQueue` 的方法。
+
+- `writeBuffer`：更新 buffer 对象的数据
+- `writeTexture`：更新 texture 对象的数据
+- `submit`：通知 GPU 执行一个或多个命令
+
+`submit` 方法特别重要，因为它告诉 GPU 要执行什么任务（图形渲染或者通用计算）。调用 `submit` 方法之后，可以通过 `onSubmittedWorkDone` 监测队列。
+
 ## 代码
 
 ```javascript
@@ -106,4 +134,5 @@ if (info) {
 }
 
 const device = await adapter.requestDevice();
+const encoder = device.createCommandEncoder();
 ```
