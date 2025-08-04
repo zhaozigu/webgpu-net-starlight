@@ -27,6 +27,10 @@ export default defineConfig({
           label: "实例",
           autogenerate: { directory: "examples" },
         },
+        {
+          label: "相关资源",
+          autogenerate: { directory: "resources" },
+        },
       ],
     }),
   ],
