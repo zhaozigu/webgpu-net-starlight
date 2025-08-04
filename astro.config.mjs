@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://www.webgpu.net",
   integrations: [
     starlight({
       title: "WebGPU 学习网站",
