@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import remarkMath from "remark-math";
 import rehypeMathJax from "rehype-mathjax";
+import vercelStatic from "@astrojs/vercel";
 
 // https://astro.build/config
 export default defineConfig({
@@ -11,6 +12,12 @@ export default defineConfig({
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeMathJax],
   },
+  adapter: vercelStatic({
+    imageService: true,
+    webAnalytics: {
+      enabled: true,
+    },
+  }),
   integrations: [
     starlight({
       title: "WebGPU 学习网站",
