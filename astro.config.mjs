@@ -20,8 +20,22 @@ export default defineConfig({
   }),
   integrations: [
     starlight({
-      title: "WebGPU 学习网站",
-      customCss: ['./src/mathjax.css'],
+      title: {
+        en: "WebGPU Learning Website",
+        'zh-CN': "WebGPU 学习网站",
+      },
+      defaultLocale: "root",
+      locales: {
+        root: {
+          label: '简体中文',
+          lang: 'zh-CN',
+        },
+        en: {
+          label: "English",
+          lang: 'en',
+        }
+      },
+      customCss: ["./src/mathjax.css"],
       social: [
         {
           icon: "github",

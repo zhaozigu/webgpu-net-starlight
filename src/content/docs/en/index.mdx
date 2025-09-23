@@ -1,0 +1,36 @@
+---
+title: Welcome to WebGPU Learning Website
+description: Comprehensive learning of modern WebGPU graphics programming technology
+template: splash
+hero:
+  tagline: Master next-generation web graphics technology and embark on your high-performance GPU programming journey!
+  image:
+    file: ../../../assets/houston.webp
+  actions:
+    - text: Start Learning
+      link: /guides/getting-started/
+      icon: right-arrow
+    - text: WebGPU Official Specification
+      link: https://www.w3.org/TR/webgpu/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Learning Path
+
+<CardGrid stagger>
+	<Card title="Fundamental Concepts" icon="rocket">
+		Learn WebGPU core concepts, rendering pipelines, and compute shader fundamentals.
+	</Card>
+	<Card title="Practical Tutorials" icon="laptop">
+		Learn how to create 3D graphics, perform parallel computing, and optimize performance through real projects.
+	</Card>
+	<Card title="API Reference" icon="setting">
+		Detailed WebGPU API documentation including all interfaces, methods, and best practices.
+	</Card>
+	<Card title="Code Examples" icon="open-book">
+		Rich code examples and complete projects to help you quickly get started with WebGPU development.
+	</Card>
+</CardGrid>
