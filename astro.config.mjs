@@ -8,6 +8,13 @@ import vercelStatic from "@astrojs/vercel";
 // https://astro.build/config
 export default defineConfig({
   site: "https://www.webgpu.net",
+  vite: {
+    resolve: {
+      alias: {
+        '@': '/src'
+      }
+    }
+  },
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeMathJax],

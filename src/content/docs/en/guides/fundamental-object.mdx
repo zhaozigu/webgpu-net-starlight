@@ -1,0 +1,199 @@
+---
+title: Fundamental Objects
+description: Learn the essential objects needed for WebGPU development
+sidebar:
+  order: 3
+---
+
+WebGPU is relatively more complex compared to WebGL. To develop with WebGPU, you need to create and configure many JavaScript objects. The ultimate goal of these objects can be summarized as **sending commands to the GPU**.
+
+More precisely, it's about submitting **command buffers** to the queue bound to the client GPU. This requires at least 6 steps:
+
+1. Get the browser's `Navigator`, where you can check if the browser supports WebGPU;
+2. If the browser supports WebGPU, you can obtain a `GPUAdapter` from the `Navigator`;
+3. Use the `GPUAdapter` to get a `GPUDevice`;
+4. Use the `GPUDevice` to create a `GPUCommandEncoder`;
+5. Configure the encoder to record commands to the buffer;
+6. Submit the command buffer to the `GPUQueue` bound to the `GPUDevice`.
+
+If you want to render graphics, additional steps are needed to bind the `GPUDevice` to a `Canvas`. This requires three additional steps:
+
+1. Get the `Canvas` element in HTML;
+2. Get the `GPUCanvasContext` from the `Canvas` element;
+3. Configure the `GPUCanvasContext` using the `GPUDevice` and canvas format.
+
+Once the `GPUDevice` is bound to the `Canvas`, you can render graphics to the `Canvas` by calling methods on the `GPUDevice`.
+
+## Navigator
+
+Modern browsers all have a [`Navigator` object](https://developer.mozilla.org/en-US/docs/Web/API/Navigator) that contains the features supported by the current browser. For example, `clipboard` represents the ability to read the system clipboard.
+
+```js
+if (!navigator.gpu) {
+  throw new Error("WebGPU not supported.");
+}
+```
+
+The `gpu` provides two important methods:
+
+- `requestAdapter()`: Returns a `Promise` object for a `GPUAdapter`;
+- `getPreferredCanvasFormat()`: Returns a string representing the best canvas format for the browser, e.g., `bgra8unorm`
+
+## GPUAdapter
+
+**Browser support for WebGPU doesn't mean the user's hardware supports WebGPU rendering and computation.** Therefore, you need to use `requestAdapter` to obtain a `GPUAdapter`.
+
+Note that `requestAdapter` returns a `Promise` placeholder object. Each `Promise` has three states:
+
+- `pending`: The operation hasn't completed yet
+- `fulfillment`: The operation is complete
+- `rejection`: An error occurred
+
+Typically, you would use `await` to wait for the operation to complete:
+
+```javascript
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  throw new Error("No appropriate GPUAdapter found.");
+}
+```
+
+After obtaining the `GPUAdapter`, you can get information about the user's rendering and computing capabilities through `info`.
+
+```javascript
+const info = adapter.info;
+
+if (info) {
+  console.log("Vendor: " + info.vendor);
+  console.log("Architecture: " + info.architecture);
+  console.log("Device: " + info.device);
+  console.log("Description: " + info.description);
+}
+```
+
+For complete supported properties, refer to: [GPUAdapterInfo](https://www.w3.org/TR/webgpu/#gpuadapterinfo)
+
+There are also two useful parameters, `features` and `limits`.
+
+- `features`: Get the features supported by the GPU;
+- `limits`: Get the maximum/minimum operation parameters that the GPU can handle;
+
+The most important function of `GPUAdapter` is to provide `GPUDevice`, which also returns a `Promise` object:
+
+```javascript
+const device = await adapter.requestDevice();
+```
+
+## GPUDevice
+
+[`GPUDevice`](https://www.w3.org/TR/webgpu/#gpudevice) serves as a **logical connection** to the client GPU and plays a **central role** in WebGPU development.
+
+## GPUCommandEncoder
+
+The most important method of `GPUDevice` is `createCommandEncoder`. This object is used to create and store commands to be sent to the GPU.
+
+```js
+const encoder = device.createCommandEncoder();
+```
+
+The following three methods are the most important:
+
+- `beginRenderPass`: Encode a render pass for graphics rendering
+- `beginComputePass`: Encode a compute pass for computational tasks
+- `finish`: Return a command buffer containing the encoder's commands
+
+## GPUQueue
+
+`GPUDevice` has an important property called `queue`, which provides a `GPUQueue`. To execute GPU operations, you need to call methods on the `GPUQueue`.
+
+- `writeBuffer`: Update data in buffer objects
+- `writeTexture`: Update data in texture objects
+- `submit`: Notify the GPU to execute one or more commands
+
+The `submit` method is particularly important because it tells the GPU what tasks to execute (graphics rendering or general computation). After calling the `submit` method, you can monitor the queue through `onSubmittedWorkDone`.
+
+## Canvas
+
+To display rendered graphics on a web page, you need to use a `<canvas>` element. This requires three steps:
+
+1. Create a canvas element in HTML;
+2. Get the canvas element through JavaScript, for example: using selectors;
+3. Configure through the canvas context.
+
+```html
+<!-- Create canvas element in HTML -->
+<canvas id="mycanvas" width="400" height="200"></canvas>
+```
+
+Getting HTML elements can generally be done through selectors or ID:
+
+```js
+// Tag selector
+const canvas = document.querySelector("canvas");
+// ID selector
+const canvas = document.getElementById("mycanvas");
+```
+
+Then you can give this `canvas` a `webgpu` context:
+
+```js
+const context = canvas.getContext("webgpu");
+```
+
+The final step is to complete the configuration:
+
+```js
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
+```
+
+## Demo
+
+import WebGPUCanvas from "@/components/FundamentalObject.astro";
+
+<WebGPUCanvas title="Fundamental Objects" width={100} height={100} />
+
+### Core Code
+
+```javascript
+if (!navigator.gpu) {
+  throw new Error("WebGPU not supported.");
+}
+
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  throw new Error("No appropriate GPUAdapter found.");
+}
+
+const info = adapter.info;
+
+if (info) {
+  console.log("Vendor: " + info.vendor);
+  console.log("Architecture: " + info.architecture);
+  console.log("Device: " + info.device);
+  console.log("Description: " + info.description);
+}
+
+const device = await adapter.requestDevice();
+// const encoder = device.createCommandEncoder();
+
+const canvas = document.getElementById(id);
+if (!canvas) {
+  throw new Error(`No canvas element found: ${id}`);
+}
+
+const context = canvas.getContext("webgpu");
+if (!context) {
+  throw new Error("Failed to get WebGPU context.");
+}
+
+const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+context.configure({
+  device: device,
+  format: canvasFormat,
+});
+```

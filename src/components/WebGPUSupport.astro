@@ -1,11 +1,24 @@
 ---
 // WebGPU 支持检测组件
+
+// 准备i18n文本传递给客户端脚本
+const i18nTexts = {
+  checking: Astro.locals.t('webgpu.support.checking'),
+  notSupported: Astro.locals.t('webgpu.support.notSupported'),
+  notSupportedDetails: Astro.locals.t('webgpu.support.notSupportedDetails'),
+  supported: Astro.locals.t('webgpu.support.supported'),
+  supportedDetails: Astro.locals.t('webgpu.support.supportedDetails'),
+  noAdapter: Astro.locals.t('webgpu.support.noAdapter'),
+  noAdapterDetails: Astro.locals.t('webgpu.support.noAdapterDetails'),
+  error: Astro.locals.t('webgpu.support.error'),
+  errorPrefix: Astro.locals.t('webgpu.support.errorPrefix'),
+};
 ---
 
 <div class="webgpu-support-check">
   <div id="webgpu-status" class="status-loading">
     <span class="icon">⏳</span>
-    <span class="text">检测 WebGPU 支持中...</span>
+    <span class="text" id="status-text">检测 WebGPU 支持中...</span>
   </div>
 </div>
 
@@ -50,19 +63,25 @@
   }
 </style>
 
-<script>
+<script define:vars={{ i18nTexts }}>
   function checkWebGPUSupport() {
     const statusElement = document.getElementById('webgpu-status');
-    
+    const statusTextElement = document.getElementById('status-text');
+
     if (!statusElement) return;
+
+    // 设置初始状态文本
+    if (statusTextElement) {
+      statusTextElement.textContent = i18nTexts.checking;
+    }
 
     // 检查 navigator.gpu 是否存在
     if (!navigator.gpu) {
       statusElement.className = 'status-not-supported';
       statusElement.innerHTML = `
         <span class="icon">❌</span>
-        <span class="text">WebGPU 不被当前浏览器支持</span>
-        <div class="details">请使用支持 WebGPU 的浏览器，如 Chrome 113+ 或 Firefox Nightly</div>
+        <span class="text">${i18nTexts.notSupported}</span>
+        <div class="details">${i18nTexts.notSupportedDetails}</div>
       `;
       return;
     }
@@ -74,15 +93,15 @@
           statusElement.className = 'status-supported';
           statusElement.innerHTML = `
             <span class="icon">✅</span>
-            <span class="text">WebGPU 被当前浏览器支持</span>
-            <div class="details">您可以正常使用本网站的所有 WebGPU 示例</div>
+            <span class="text">${i18nTexts.supported}</span>
+            <div class="details">${i18nTexts.supportedDetails}</div>
           `;
         } else {
           statusElement.className = 'status-not-supported';
           statusElement.innerHTML = `
             <span class="icon">❌</span>
-            <span class="text">无法获取 WebGPU 适配器</span>
-            <div class="details">虽然浏览器支持 WebGPU，但无法访问 GPU 硬件</div>
+            <span class="text">${i18nTexts.noAdapter}</span>
+            <div class="details">${i18nTexts.noAdapterDetails}</div>
           `;
         }
       })
@@ -90,8 +109,8 @@
         statusElement.className = 'status-error';
         statusElement.innerHTML = `
           <span class="icon">⚠️</span>
-          <span class="text">WebGPU 检测时发生错误</span>
-          <div class="details">错误信息: ${error.message}</div>
+          <span class="text">${i18nTexts.error}</span>
+          <div class="details">${i18nTexts.errorPrefix}: ${error.message}</div>
         `;
       });
   }

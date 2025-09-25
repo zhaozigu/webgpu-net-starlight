@@ -1,0 +1,50 @@
+{
+  "webgpu": {
+    "demo": {
+      "title": "WebGPU 演示",
+      "error": "错误",
+      "errors": {
+        "notSupported": "WebGPU 不被当前浏览器支持。请使用支持 WebGPU 的现代浏览器。",
+        "noAdapter": "无法获取 WebGPU 适配器。",
+        "canvasNotFound": "找不到 canvas 元素",
+        "noContext": "无法获取 WebGPU 上下文。",
+        "initFailed": "WebGPU 初始化失败"
+      },
+      "labels": {
+        "vertexShader": "顶点着色器",
+        "fragmentShader": "片段着色器",
+        "renderPipeline": "渲染管道",
+        "renderPass": "渲染通道",
+        "commandEncoder": "命令编码器"
+      }
+    },
+    "support": {
+      "checking": "检测 WebGPU 支持中...",
+      "notSupported": "WebGPU 不被当前浏览器支持",
+      "notSupportedDetails": "请使用支持 WebGPU 的浏览器，如 Chrome 113+ 或 Firefox Nightly",
+      "supported": "WebGPU 被当前浏览器支持",
+      "supportedDetails": "您可以正常使用本网站的所有 WebGPU 示例",
+      "noAdapter": "无法获取 WebGPU 适配器",
+      "noAdapterDetails": "虽然浏览器支持 WebGPU，但无法访问 GPU 硬件",
+      "error": "WebGPU 检测时发生错误",
+      "errorPrefix": "错误信息"
+    },
+    "fundamentalObject": {
+      "title": "WebGPU 演示",
+      "initTitle": "初始化基础对象",
+      "webgpuSupported": "支持 WebGPU",
+      "adapterObtained": "获取到 GPU 适配器",
+      "deviceObtained": "获取到 GPU 设备",
+      "contextObtained": "获取到 WebGPU 上下文",
+      "configComplete": "配置完成，格式",
+      "errors": {
+        "notSupported": "WebGPU 不被当前浏览器支持。请使用支持 WebGPU 的现代浏览器。",
+        "noAdapter": "无法获取 WebGPU 适配器。",
+        "canvasNotFound": "找不到 canvas 元素",
+        "noContext": "无法获取 WebGPU 上下文。",
+        "initFailed": "WebGPU 初始化失败",
+        "errorPrefix": "错误"
+      }
+    }
+  }
+}

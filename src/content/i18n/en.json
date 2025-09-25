@@ -1,0 +1,50 @@
+{
+  "webgpu": {
+    "demo": {
+      "title": "WebGPU Demo",
+      "error": "Error",
+      "errors": {
+        "notSupported": "WebGPU is not supported by the current browser. Please use a modern browser that supports WebGPU.",
+        "noAdapter": "Failed to get WebGPU adapter.",
+        "canvasNotFound": "Canvas element not found",
+        "noContext": "Failed to get WebGPU context.",
+        "initFailed": "WebGPU initialization failed"
+      },
+      "labels": {
+        "vertexShader": "Vertex Shader",
+        "fragmentShader": "Fragment Shader",
+        "renderPipeline": "Render Pipeline",
+        "renderPass": "Render Pass",
+        "commandEncoder": "Command Encoder"
+      }
+    },
+    "support": {
+      "checking": "Checking WebGPU support...",
+      "notSupported": "WebGPU is not supported by the current browser",
+      "notSupportedDetails": "Please use a WebGPU-compatible browser such as Chrome 113+ or Firefox Nightly",
+      "supported": "WebGPU is supported by the current browser",
+      "supportedDetails": "You can use all WebGPU examples on this website normally",
+      "noAdapter": "Failed to get WebGPU adapter",
+      "noAdapterDetails": "Although the browser supports WebGPU, GPU hardware cannot be accessed",
+      "error": "An error occurred while detecting WebGPU",
+      "errorPrefix": "Error message"
+    },
+    "fundamentalObject": {
+      "title": "WebGPU Demo",
+      "initTitle": "Initializing Fundamental Objects",
+      "webgpuSupported": "WebGPU supported",
+      "adapterObtained": "GPU adapter obtained",
+      "deviceObtained": "GPU device obtained",
+      "contextObtained": "WebGPU context obtained",
+      "configComplete": "Configuration complete, format",
+      "errors": {
+        "notSupported": "WebGPU is not supported by the current browser. Please use a modern browser that supports WebGPU.",
+        "noAdapter": "Failed to get WebGPU adapter.",
+        "canvasNotFound": "Canvas element not found",
+        "noContext": "Failed to get WebGPU context.",
+        "initFailed": "WebGPU initialization failed",
+        "errorPrefix": "Error"
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+---
+title: Introduction
+description: A first-step guide to start learning WebGPU
+sidebar:
+  order: 1
+---
+
+import WebGPUSupport from '@/components/WebGPUSupport.astro';
+
+WebGPU is the next-generation Web graphics API that provides modern GPU access capabilities, supporting high-performance graphics rendering and general-purpose computing.
+
+## What is WebGPU?
+
+WebGPU is a modern Web standard that provides:
+
+- **High-performance graphics rendering**: Direct access to GPU hardware capabilities
+- **Compute shader support**: Execute parallel computing tasks on the GPU
+- **Modern design**: Based on modern graphics APIs like Vulkan, Metal, and D3D12
+- **Cross-platform compatibility**: Supports desktop and mobile devices
+
+## Browser Support
+
+<WebGPUSupport />
+
+Currently, WebGPU is available in the following browsers:
+
+- Chrome 113+ (enabled by default)
+- Firefox Nightly (requires enabling experimental features)
+- Safari Technology Preview (experimental support)
+
+## Your First WebGPU Program
+
+Let's create a simple WebGPU application:
+
+```javascript
+// Check if the browser supports WebGPU
+if (!navigator.gpu) {
+  throw new Error('WebGPU is not supported by the current browser');
+}
+
+// Request a GPU adapter
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  throw new Error('Failed to get WebGPU adapter');
+}
+
+// Request a GPU device
+const device = await adapter.requestDevice();
+
+console.log('WebGPU device initialized successfully!');
+```
