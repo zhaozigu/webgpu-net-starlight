@@ -1,0 +1,347 @@
+---
+const isEn = Astro.locals.starlightRoute.lang === 'en';
+const captionFallback = isEn
+	? 'Static triangle. Browsers with WebGPU draw this live.'
+	: '静态三角形。支持 WebGPU 的浏览器会在这里实时绘制。';
+const captionLive = isEn
+	? 'Triangle drawn live on this page with WebGPU.'
+	: '本页用 WebGPU 实时绘制的三角形。';
+---
+
+<figure
+	class="hero-visual"
+	data-hero-visual
+	data-caption-live={captionLive}
+	data-caption-fallback={captionFallback}
+>
+	<div class="stage">
+		<div class="stage-bar">
+			<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+			<span class="stage-label">WebGPU</span>
+		</div>
+		<div class="stage-body">
+			<svg class="fallback" viewBox="0 0 640 480" aria-hidden="true">
+				<defs>
+					<linearGradient id="home-hero-tri" x1="80" y1="70" x2="520" y2="400" gradientUnits="userSpaceOnUse">
+						<stop offset="0%" stop-color="#8eb6ff" />
+						<stop offset="48%" stop-color="#7a5cff" />
+						<stop offset="100%" stop-color="#3ddec8" />
+					</linearGradient>
+					<radialGradient id="home-hero-glow" cx="50%" cy="42%" r="58%">
+						<stop offset="0%" stop-color="#4d6dff" stop-opacity="0.55" />
+						<stop offset="100%" stop-color="#4d6dff" stop-opacity="0" />
+					</radialGradient>
+				</defs>
+				<rect width="640" height="480" fill="#121826" />
+				<circle cx="320" cy="220" r="190" fill="url(#home-hero-glow)" />
+				<polygon points="320,86 148,372 492,372" fill="url(#home-hero-tri)" />
+			</svg>
+			<canvas id="home-hero-canvas" aria-hidden="true"></canvas>
+		</div>
+	</div>
+	<figcaption>{captionFallback}</figcaption>
+</figure>
+
+<script>
+	const shader = `
+struct Uniforms {
+  time: f32,
+  animate: f32,
+  pad: vec2f,
+};
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+
+struct VsOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+};
+
+@vertex
+fn vs(@builtin(vertex_index) i: u32) -> VsOut {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.62),
+    vec2f(-0.62, -0.5),
+    vec2f(0.62, -0.5)
+  );
+  var uvs = array<vec2f, 3>(
+    vec2f(0.5, 0.0),
+    vec2f(0.0, 1.0),
+    vec2f(1.0, 1.0)
+  );
+  let pulse = select(1.0, 0.94 + 0.06 * sin(u.time * 1.3), u.animate > 0.5);
+  var out: VsOut;
+  out.pos = vec4f(positions[i] * pulse, 0.0, 1.0);
+  out.uv = uvs[i];
+  return out;
+}
+
+@fragment
+fn fs(in: VsOut) -> @location(0) vec4f {
+  let blue = vec3f(0.45, 0.62, 1.0);
+  let violet = vec3f(0.48, 0.36, 0.95);
+  let teal = vec3f(0.24, 0.87, 0.78);
+  var color = mix(blue, violet, in.uv.x);
+  color = mix(color, teal, in.uv.y * (0.55 + 0.2 * sin(u.time * 0.6)));
+  return vec4f(color, 1.0);
+}
+`;
+
+	function boot() {
+		const figure = document.querySelector('[data-hero-visual]');
+		if (!(figure instanceof HTMLElement) || figure.dataset.booted === '1') return;
+		figure.dataset.booted = '1';
+
+		const canvas = figure.querySelector('canvas');
+		const caption = figure.querySelector('figcaption');
+		if (!(canvas instanceof HTMLCanvasElement)) return;
+
+		const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		let raf = 0;
+		let stopped = false;
+
+		const showFallback = () => {
+			figure.classList.remove('is-live');
+			if (caption) caption.textContent = figure.dataset.captionFallback || '';
+		};
+
+		const showLive = () => {
+			figure.classList.add('is-live');
+			if (caption) caption.textContent = figure.dataset.captionLive || '';
+		};
+
+		const stop = () => {
+			stopped = true;
+			if (raf) cancelAnimationFrame(raf);
+		};
+
+		async function start() {
+			try {
+				if (!navigator.gpu) throw new Error('no-gpu');
+				const adapter = await navigator.gpu.requestAdapter();
+				if (!adapter) throw new Error('no-adapter');
+				const device = await adapter.requestDevice();
+				const context = canvas.getContext('webgpu');
+				if (!context) throw new Error('no-context');
+				const format = navigator.gpu.getPreferredCanvasFormat();
+				const configure = () => {
+					context.configure({ device, format, alphaMode: 'opaque' });
+				};
+
+				const module = device.createShaderModule({ code: shader });
+				const compiled = await module.getCompilationInfo();
+				const shaderError = compiled.messages.find((message) => message.type === 'error');
+				if (shaderError) throw new Error(shaderError.message);
+
+				const pipeline = device.createRenderPipeline({
+					layout: 'auto',
+					vertex: { module, entryPoint: 'vs' },
+					fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+					primitive: { topology: 'triangle-list' },
+				});
+
+				const uniform = device.createBuffer({
+					size: 16,
+					usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+				});
+				const bindGroup = device.createBindGroup({
+					layout: pipeline.getBindGroupLayout(0),
+					entries: [{ binding: 0, resource: { buffer: uniform } }],
+				});
+
+				const resize = () => {
+					const rect = canvas.getBoundingClientRect();
+					const dpr = Math.min(window.devicePixelRatio || 1, 2);
+					const width = Math.max(1, Math.round(rect.width * dpr));
+					const height = Math.max(1, Math.round(rect.height * dpr));
+					if (canvas.width === width && canvas.height === height) return;
+					canvas.width = width;
+					canvas.height = height;
+					configure();
+				};
+				resize();
+
+				let visible = true;
+				const observer = new IntersectionObserver((entries) => {
+					visible = entries.some((entry) => entry.isIntersecting);
+				});
+				observer.observe(canvas);
+
+				let presented = false;
+				device.lost.then(() => {
+					stop();
+					if (!presented) showFallback();
+				});
+
+				const draw = (timeMs: number) => {
+					if (stopped) return;
+					try {
+						resize();
+						const seconds = reduced ? 0.8 : timeMs / 1000;
+						device.queue.writeBuffer(
+							uniform,
+							0,
+							new Float32Array([seconds, reduced ? 0 : 1, 0, 0])
+						);
+						const encoder = device.createCommandEncoder();
+						const pass = encoder.beginRenderPass({
+							colorAttachments: [
+								{
+									view: context.getCurrentTexture().createView(),
+									clearValue: { r: 0.071, g: 0.094, b: 0.149, a: 1 },
+									loadOp: 'clear',
+									storeOp: 'store',
+								},
+							],
+						});
+						pass.setPipeline(pipeline);
+						pass.setBindGroup(0, bindGroup);
+						pass.draw(3);
+						pass.end();
+						device.queue.submit([encoder.finish()]);
+						presented = true;
+						if (!figure.classList.contains('is-live')) showLive();
+					} catch {
+						stop();
+						if (!presented) showFallback();
+					}
+				};
+
+				const loop = (timeMs: number) => {
+					if (stopped) return;
+					const hidden = document.visibilityState === 'hidden' || !visible;
+					const rect = canvas.getBoundingClientRect();
+					const ready = rect.width > 2 && rect.height > 2;
+					if (!hidden && ready) draw(timeMs);
+					if (!stopped && (!reduced || !ready)) raf = requestAnimationFrame(loop);
+				};
+				raf = requestAnimationFrame(loop);
+
+				document.addEventListener('visibilitychange', () => {
+					if (document.visibilityState === 'hidden' && raf) {
+						cancelAnimationFrame(raf);
+						raf = 0;
+					} else if (!stopped && !reduced && !raf) {
+						raf = requestAnimationFrame(loop);
+					}
+				});
+				window.addEventListener('pagehide', stop, { once: true });
+			} catch {
+				showFallback();
+			}
+		}
+
+		start();
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', boot, { once: true });
+	} else {
+		boot();
+	}
+</script>
+
+<style>
+	.hero-visual {
+		margin: 0;
+		min-width: 0;
+	}
+
+	.stage {
+		overflow: hidden;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 1rem;
+		background: #121826;
+		box-shadow: var(--sl-shadow-md);
+	}
+
+	.stage-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.55rem 0.8rem;
+		background: #1a2233;
+		color: #d5dbeb;
+		font-family: var(--sl-font-system-mono);
+		font-size: 0.75rem;
+		letter-spacing: 0.04em;
+	}
+
+	.dots {
+		display: inline-flex;
+		gap: 0.3rem;
+	}
+
+	.dots i {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 999rem;
+		background: #3a4560;
+	}
+
+	.dots i:first-child {
+		background: #ff6b8a;
+	}
+
+	.dots i:nth-child(2) {
+		background: #f0c14a;
+	}
+
+	.dots i:nth-child(3) {
+		background: #3ddec8;
+	}
+
+	.stage-label {
+		opacity: 0.85;
+	}
+
+	.stage-body {
+		position: relative;
+		aspect-ratio: 4 / 3;
+	}
+
+	.fallback,
+	canvas {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+
+	canvas {
+		opacity: 0;
+	}
+
+	.hero-visual.is-live canvas {
+		opacity: 1;
+	}
+
+	.hero-visual.is-live .fallback {
+		visibility: hidden;
+	}
+
+	figcaption {
+		margin-top: 0.55rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-xs);
+		line-height: 1.45;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.hero-visual:not(.is-live) .fallback {
+			transform-origin: center;
+			animation: hero-pulse 7s ease-in-out infinite;
+		}
+	}
+
+	@keyframes hero-pulse {
+		0%,
+		100% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(0.96);
+		}
+	}
+</style>

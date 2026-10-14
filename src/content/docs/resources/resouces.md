@@ -1,6 +1,6 @@
 ---
 title: WebGPU 相关资料
-description: 官方文档、实例等资源收集
+description: WebGPU 与 WGSL 规范、MDN、官方示例，以及 Babylon.js 和 Three.js 的相关入口。
 ---
 
 ## 文档

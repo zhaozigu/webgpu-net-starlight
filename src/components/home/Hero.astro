@@ -1,0 +1,195 @@
+---
+import DefaultHero from '@astrojs/starlight/components/Hero.astro';
+import HeroVisual from './HeroVisual.astro';
+
+const route = Astro.locals.starlightRoute;
+const pathname = Astro.url.pathname.replace(/\/+$/, '') || '/';
+const isHome = pathname === '/' || pathname === '/en';
+const { data } = route.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+const isEn = route.lang === 'en';
+
+const eyebrow = isEn ? 'The modern GPU API for the web' : '面向浏览器的现代 GPU API';
+
+const icons: Record<string, string> = {
+	'right-arrow':
+		'<svg xmlns="http://www.w3.org/2000/svg" width="1.15em" height="1.15em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+	rocket:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="1.15em" height="1.15em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 5 11 7-11 7V5z"/></svg>',
+	'open-book':
+		'<svg xmlns="http://www.w3.org/2000/svg" width="1.15em" height="1.15em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+};
+
+function iconMarkup(icon: { name?: string; html?: string; type?: string } | undefined) {
+	if (!icon) return '';
+	if (icon.html) return icon.html;
+	if (icon.name && icons[icon.name]) return icons[icon.name];
+	return '';
+}
+---
+
+{
+	isHome ? (
+		<div class="hero">
+			<div class="stack">
+				<p class="eyebrow">{eyebrow}</p>
+				<div class="copy">
+					<h1 id="_top" data-page-title set:html={title} />
+					{tagline && <p class="tagline" set:html={tagline} />}
+				</div>
+				{actions.length > 0 && (
+					<div class="actions">
+						{actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link, text, variant }) => {
+							const external = /^https?:/i.test(link);
+							return (
+								<a
+									class:list={['home-cta', variant, className]}
+									href={link}
+									{...attrs}
+									{...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+								>
+									<span>{text}</span>
+									<Fragment set:html={iconMarkup(icon)} />
+								</a>
+							);
+						})}
+					</div>
+				)}
+			</div>
+			<HeroVisual />
+		</div>
+	) : (
+		<DefaultHero />
+	)
+}
+
+<style>
+	.hero {
+		display: grid;
+		align-items: center;
+		gap: 1.75rem;
+	}
+
+	.stack {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+		min-width: 0;
+	}
+
+	.eyebrow {
+		margin: 0;
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--sl-color-text-accent);
+	}
+
+	.copy {
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+
+	h1 {
+		margin: 0;
+		max-width: 16ch;
+		font-size: clamp(2rem, calc(1.2rem + 3.4vw), 3.5rem);
+		line-height: 1.12;
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		color: var(--sl-color-white);
+	}
+
+	.tagline {
+		margin: 0;
+		max-width: 42rem;
+		font-size: clamp(1.02rem, calc(0.92rem + 0.45vw), 1.2rem);
+		line-height: 1.6;
+		color: var(--sl-color-gray-2);
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem 1.25rem;
+	}
+
+	.home-cta {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45em;
+		min-height: 2.75rem;
+		padding: 0.55rem 1.15rem;
+		border: 1px solid transparent;
+		border-radius: 999rem;
+		font-size: var(--sl-text-sm);
+		font-weight: 600;
+		line-height: 1.2;
+		text-decoration: none;
+		outline-offset: 3px;
+	}
+
+	.home-cta:focus-visible {
+		outline: 2px solid var(--sl-color-text-accent);
+	}
+
+	.home-cta.primary {
+		background: var(--sl-color-text-accent);
+		border-color: var(--sl-color-text-accent);
+		color: var(--sl-color-black);
+	}
+
+	.home-cta.primary:hover {
+		filter: brightness(1.08);
+	}
+
+	.home-cta.secondary {
+		background: transparent;
+		border-color: var(--sl-color-gray-4);
+		color: var(--sl-color-white);
+	}
+
+	.home-cta.secondary:hover {
+		border-color: var(--sl-color-text-accent);
+		color: var(--sl-color-text-accent);
+	}
+
+	.home-cta.minimal {
+		min-height: 2.75rem;
+		padding-inline: 0.25rem;
+		background: transparent;
+		color: var(--sl-color-white);
+		text-decoration: underline;
+		text-underline-offset: 0.22em;
+	}
+
+	.home-cta.minimal:hover {
+		color: var(--sl-color-text-accent);
+	}
+
+	.home-cta :global(svg) {
+		flex-shrink: 0;
+	}
+
+	@media (min-width: 50rem) {
+		.hero {
+			grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+			gap: clamp(2rem, 4vw, 3.5rem);
+			padding-block: clamp(1.5rem, 3vw, 3rem) 0.5rem;
+		}
+
+		.home-cta {
+			font-size: var(--sl-text-base);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.home-cta.primary:hover {
+			filter: none;
+		}
+	}
+</style>

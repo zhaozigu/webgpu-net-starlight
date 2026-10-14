@@ -1,6 +1,6 @@
 ---
 title: WebGPU API 参考
-description: WebGPU 核心 API 接口和方法参考文档
+description: WebGPU 核心接口速查：GPU、GPUAdapter、GPUDevice、画布上下文和命令队列各自做什么。
 ---
 
 WebGPU API 提供了访问现代 GPU 功能的完整接口集。以下是主要的 API 组件和接口。

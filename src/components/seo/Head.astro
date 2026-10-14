@@ -1,0 +1,15 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+
+const { head, lang } = Astro.locals.starlightRoute;
+const zh = head.find(
+	(item) =>
+		item.tag === 'link' && item.attrs?.rel === 'alternate' && item.attrs?.hreflang === 'zh-CN'
+);
+const zhHref = zh?.attrs && 'href' in zh.attrs ? String(zh.attrs.href) : undefined;
+const alternateLocale = lang === 'en' ? 'zh-CN' : 'en';
+---
+
+<Default />
+{zhHref && <link rel="alternate" hreflang="x-default" href={zhHref} />}
+<meta property="og:locale:alternate" content={alternateLocale} />

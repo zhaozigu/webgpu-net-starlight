@@ -1,0 +1,52 @@
+---
+const route = Astro.locals.starlightRoute;
+const site = Astro.site;
+
+let json = '';
+if (site) {
+	const isEn = route.lang === 'en';
+	const pageUrl = new URL(Astro.url.pathname, site).href;
+	const homeUrl = new URL('/', site).href;
+	const name = route.entry.data.title;
+	const description = route.entry.data.description ?? '';
+	const siteName = isEn ? 'WebGPU Learning Website' : 'WebGPU 学习网站';
+
+	const data = {
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': 'WebSite',
+				'@id': `${homeUrl}#website`,
+				url: homeUrl,
+				name: 'WebGPU 学习网站',
+				alternateName: 'WebGPU Learning Website',
+				description:
+					'Tutorials, runnable examples, and an API reference for learning WebGPU in Chinese and English.',
+				inLanguage: ['zh-CN', 'en'],
+			},
+			{
+				'@type': 'LearningResource',
+				'@id': `${pageUrl}#resource`,
+				url: pageUrl,
+				name,
+				description,
+				inLanguage: isEn ? 'en' : 'zh-CN',
+				learningResourceType: 'Tutorial',
+				teaches: 'WebGPU',
+				isAccessibleForFree: true,
+				educationalLevel: 'Beginner',
+				isPartOf: { '@id': `${homeUrl}#website` },
+				publisher: {
+					'@type': 'Organization',
+					name: siteName,
+					url: homeUrl,
+				},
+			},
+		],
+	};
+
+	json = JSON.stringify(data).replace(/</g, '\\u003c');
+}
+---
+
+{json && <script type="application/ld+json" set:html={json} />}
