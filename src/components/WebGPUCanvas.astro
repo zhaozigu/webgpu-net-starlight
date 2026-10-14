@@ -6,6 +6,8 @@ export interface Props {
   vertexShader: string;
   fragmentShader: string;
   title?: string;
+  topology?: "point-list" | "line-list" | "line-strip" | "triangle-list" | "triangle-strip";
+  vertexCount?: number;
 }
 
 const {
@@ -15,6 +17,8 @@ const {
   vertexShader,
   fragmentShader,
   title = Astro.locals.t('webgpu.demo.title'),
+  topology = "triangle-list",
+  vertexCount = 3,
 } = Astro.props;
 
 // 准备i18n文本传递给客户端脚本
@@ -43,7 +47,7 @@ const i18nTexts = {
   <div id={`${id}-error`} class="error-message" style="display: none;"></div>
 </div>
 
-<script define:vars={{ id, vertexShader, fragmentShader, i18nTexts }}>
+<script define:vars={{ id, vertexShader, fragmentShader, i18nTexts, topology, vertexCount }}>
   async function initWebGPU() {
     try {
       // 检查 WebGPU 支持
@@ -89,6 +93,14 @@ const i18nTexts = {
         code: fragmentShader,
       });
 
+      for (const shaderModule of [vertexShaderModule, fragmentShaderModule]) {
+        const info = await shaderModule.getCompilationInfo();
+        const errors = info.messages.filter((message) => message.type === "error");
+        if (errors.length > 0) {
+          throw new Error(errors.map((message) => message.message).join("\n"));
+        }
+      }
+
       // 创建渲染管道
       const renderPipeline = device.createRenderPipeline({
         label: i18nTexts.labels.renderPipeline,
@@ -106,9 +118,9 @@ const i18nTexts = {
             },
           ],
         },
-        primitive: {
-          topology: "triangle-list",
-        },
+          primitive: {
+            topology,
+          },
       });
 
       // 渲染函数
@@ -137,7 +149,7 @@ const i18nTexts = {
         // 开始渲染通道
         const pass = encoder.beginRenderPass(renderPassDescriptor);
         pass.setPipeline(renderPipeline);
-        pass.draw(3); // 绘制 3 个顶点
+        pass.draw(vertexCount);
         pass.end();
 
         // 提交命令

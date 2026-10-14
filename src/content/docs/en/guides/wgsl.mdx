@@ -1,0 +1,155 @@
+---
+title: WGSL Basics
+description: Types, entry points, and data passed between shader stages
+sidebar:
+  order: 3
+---
+
+import WebGPUCanvas from '@/components/WebGPUCanvas.astro';
+
+WGSL (WebGPU Shading Language) is the language used for vertex, fragment, and compute shaders. The source is compiled with `GPUDevice.createShaderModule()`.
+
+It looks similar to Rust and C++, with tighter rules: entry points are marked with attributes, resources declare an address space, and shaders cannot recurse.
+
+## Shader stages
+
+A module may contain many functions. A pipeline calls only the entry point you name:
+
+| Attribute | Stage | Role |
+| --- | --- | --- |
+| `@vertex` | Vertex shader | Runs once per vertex and writes a clip-space position |
+| `@fragment` | Fragment shader | Runs once per rasterized pixel and writes a color |
+| `@compute` | Compute shader | Runs in parallel workgroups, with no rasterizer |
+
+Entry point names are yours. Graphics samples on this site use `vs_main` and `fs_main`. Compute samples use `main`. The specification allows omitting `entryPoint` when a stage has exactly one entry point; the samples still set it so the JavaScript and WGSL stay easy to match.
+
+## Types
+
+Scalars are `bool`, `i32`, `u32`, and `f32`. Vectors and matrices combine a size with an element type:
+
+```
+vec2f   // alias of vec2<f32>
+vec3f
+vec4f
+vec2u   // vec2<u32>
+vec2i   // vec2<i32>
+mat4x4f
+```
+
+`array<vec2f, 3>` is a fixed array of three `vec2f` values. `array<f32>` with no length is a runtime-sized array, commonly used in storage buffers.
+
+Construction and swizzling:
+
+```
+let position = vec2f(0.0, 0.5);
+let clip = vec4f(position, 0.0, 1.0); // xy from position, z = 0, w = 1
+let xy = clip.xy;
+```
+
+`let` cannot be reassigned, `var` can, and `const` must be computable at compile time.
+
+## How an entry point receives data
+
+The simplest vertex input is the builtin `@builtin(vertex_index)`, a `u32` equal to the current vertex number. The triangle sample uses it to index a position array.
+
+The position output is `@builtin(position)` and its type is `vec4f`. `xyz` is clip space and `w` is usually `1.0` at this stage. The GPU then divides by `w` to produce normalized device coordinates. In WebGPU, x goes from -1 on the left to 1 on the right, y goes from -1 at the bottom to 1 at the top, and z goes from 0 at the near plane to 1 at the far plane.
+
+A fragment output uses `@location(0)` for color attachment 0. Return `vec4f(r, g, b, a)`, normally with components in the 0 to 1 range.
+
+## Sending vertex data to the fragment stage
+
+A fragment shader that returns a constant cannot draw a gradient. The vertex shader can write an extra `@location`, the rasterizer interpolates it across the triangle, and the fragment shader reads that same location.
+
+```
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOut {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.5),
+    vec2f(-0.5, -0.5),
+    vec2f(0.5, -0.5),
+  );
+  var colors = array<vec3f, 3>(
+    vec3f(1.0, 0.25, 0.2),
+    vec3f(0.2, 0.85, 0.35),
+    vec3f(0.25, 0.45, 1.0),
+  );
+
+  var out: VertexOut;
+  out.position = vec4f(positions[vertexIndex], 0.0, 1.0);
+  out.color = colors[vertexIndex];
+  return out;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec3f) -> @location(0) vec4f {
+  return vec4f(color, 1.0);
+}
+```
+
+Location numbers must match on both sides of the pipeline. The fragment input `@location(0)` is the interpolated color. The fragment output `@location(0)` is color attachment 0. Those are different namespaces that both happen to start at 0.
+
+## Address spaces
+
+Resources that live outside the shader must say where they live:
+
+| Declaration | Use |
+| --- | --- |
+| `var<uniform>` | Small read-only parameters, such as a color or a matrix |
+| `var<storage, read>` | Large read-only arrays |
+| `var<storage, read_write>` | Storage buffers a compute shader can write |
+| `var<workgroup>` | Memory shared inside one compute workgroup |
+| `texture_2d<f32>` / `sampler` | Sampled textures |
+| `texture_storage_2d<rgba8unorm, write>` | A storage texture a compute shader writes |
+
+Each of those variables also needs `@group` and `@binding`, which select an entry in a bind group. The next chapter puts the functions into a render pipeline. Bind groups come after buffers.
+
+## Demo
+
+The canvas runs the shader above. The three vertices are red, green, and blue, and the interior is interpolated.
+
+<WebGPUCanvas
+  id="wgsl-gradient"
+  title="Interpolated vertex colors"
+  width={640}
+  height={360}
+  vertexShader={`
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOut {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.5),
+    vec2f(-0.5, -0.5),
+    vec2f(0.5, -0.5),
+  );
+  var colors = array<vec3f, 3>(
+    vec3f(1.0, 0.25, 0.2),
+    vec3f(0.2, 0.85, 0.35),
+    vec3f(0.25, 0.45, 1.0),
+  );
+
+  var out: VertexOut;
+  out.position = vec4f(positions[vertexIndex], 0.0, 1.0);
+  out.color = colors[vertexIndex];
+  return out;
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main(@location(0) color: vec3f) -> @location(0) vec4f {
+  return vec4f(color, 1.0);
+}
+  `}
+/>
+
+## Next
+
+A shader runs only after it is placed in a [`GPURenderPipeline`](/en/guides/render-pipeline/). The full grammar is in the [WGSL specification](https://www.w3.org/TR/WGSL/).

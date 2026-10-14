@@ -1,0 +1,159 @@
+---
+title: 渲染管线
+description: 用着色器模块、渲染管线和渲染通道把三角形画到画布上
+sidebar:
+  order: 4
+---
+
+import WebGPUCanvas from '../../../components/WebGPUCanvas.astro';
+
+渲染管线描述 GPU 如何把顶点变成像素：用哪个着色器、图元怎么组装、结果写进哪种纹理格式。它在绘制之前创建，绘制时只是被绑定，然后调用 `draw()`。
+
+[三角形实例](/examples/triangle/)已经跑通过一条管线。这一章把那几步拆开。
+
+## 着色器模块
+
+WGSL 源码先编译成 `GPUShaderModule`。编译错误不会让 `createShaderModule()` 抛异常，需要再读 `getCompilationInfo()`：
+
+```javascript
+const shaderModule = device.createShaderModule({
+  label: "三角形着色器",
+  code: wgslSource,
+});
+
+const info = await shaderModule.getCompilationInfo();
+const errors = info.messages.filter((message) => message.type === "error");
+if (errors.length > 0) {
+  throw new Error(errors.map((message) => message.message).join("\n"));
+}
+```
+
+顶点和片元可以放在同一个模块里，用不同的 `entryPoint`。也可以分成两个模块。
+
+## 创建管线
+
+```javascript
+const pipeline = device.createRenderPipeline({
+  label: "三角形管线",
+  layout: "auto",
+  vertex: {
+    module: shaderModule,
+    entryPoint: "vs_main",
+  },
+  fragment: {
+    module: shaderModule,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: {
+    topology: "triangle-list",
+  },
+});
+```
+
+各字段的含义：
+
+- `layout: "auto"` 让实现根据着色器里的 `@group` / `@binding` 生成管线布局。没有外部资源时，这样最省事。显式布局在[绑定组](/guides/bind-groups/)里再写。
+- `vertex.entryPoint` 必须是一个 `@vertex` 函数。
+- `fragment.targets[0].format` 必须和颜色附件的格式一致。画到画布上时，用 `navigator.gpu.getPreferredCanvasFormat()` 的返回值，一般是 `"bgra8unorm"` 或 `"rgba8unorm"`。
+- `primitive.topology` 决定顶点如何组成图元。默认是 `"triangle-list"`：每 3 个顶点一个三角形。
+
+常用拓扑：
+
+| topology | 含义 |
+| --- | --- |
+| `"triangle-list"` | 每 3 个顶点一个独立三角形 |
+| `"triangle-strip"` | 相邻三角形共用一条边 |
+| `"line-list"` | 每 2 个顶点一条独立线段 |
+| `"line-strip"` | 折线，相邻顶点连成一段 |
+| `"point-list"` | 每个顶点一个点 |
+
+`frontFace` 默认 `"ccw"`（逆时针为正面），`cullMode` 默认 `"none"`（不剔除）。需要背面剔除时再改。
+
+## 渲染通道
+
+管线不会自己画。每帧要录制命令：
+
+1. `context.getCurrentTexture()` 取出画布当前要显示的纹理，再 `createView()`。这个视图不能跨帧复用。
+2. `beginRenderPass()` 声明颜色附件。`loadOp: "clear"` 用 `clearValue` 清屏，`storeOp: "store"` 把结果留下。
+3. `setPipeline()`、必要时 `setVertexBuffer()` 和 `setBindGroup()`，然后 `draw(vertexCount)`。
+4. `pass.end()`，`encoder.finish()`，最后 `device.queue.submit()`。
+
+```javascript
+const encoder = device.createCommandEncoder();
+const pass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+});
+pass.setPipeline(pipeline);
+pass.draw(3);
+pass.end();
+device.queue.submit([encoder.finish()]);
+```
+
+`draw(3)` 的 3 是顶点个数，不是三角形个数。`"triangle-list"` 下 3 个顶点刚好一个三角形。顶点坐标仍然可以像三角形示例那样写在着色器的数组里；下一章改成从缓冲区读取。
+
+## 演示
+
+同一个三角形，左边按 `"triangle-list"` 填充，右边用 `"line-strip"` 把三个顶点连回去。线框多画了一次起点，所以是 4 个顶点。
+
+<WebGPUCanvas
+  id="pipeline-fill"
+  title="triangle-list"
+  width={480}
+  height={300}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.55),
+    vec2f(-0.55, -0.5),
+    vec2f(0.55, -0.5),
+  );
+  return vec4f(positions[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(0.95, 0.45, 0.2, 1.0);
+}
+  `}
+/>
+
+<WebGPUCanvas
+  id="pipeline-lines"
+  title="line-strip"
+  width={480}
+  height={300}
+  topology="line-strip"
+  vertexCount={4}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 4>(
+    vec2f(0.0, 0.55),
+    vec2f(-0.55, -0.5),
+    vec2f(0.55, -0.5),
+    vec2f(0.0, 0.55),
+  );
+  return vec4f(positions[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(0.35, 0.75, 0.95, 1.0);
+}
+  `}
+/>
+
+## 下一步
+
+坐标还写在着色器里。换成 [缓冲区](/guides/buffers/) 之后，网格数据就可以从 JavaScript 上传。管线对象的字段说明见 [GPURenderPipeline](/reference/gpu-render-pipeline/)。

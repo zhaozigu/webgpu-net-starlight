@@ -1,0 +1,63 @@
+---
+title: Texture Mapping
+description: Upload a generated checkerboard and sample it onto a quad
+sidebar:
+  order: 4
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+A 64×64 `"rgba8unorm"` checkerboard is uploaded with `writeTexture()`. Each row is 256 bytes, which satisfies the rule that `bytesPerRow` is a multiple of 256. The sampler uses `"nearest"`, so the cells stay sharp when magnified. The full explanation is in [Textures and samplers](/en/guides/textures/).
+
+## Live demo
+
+<WebGPULesson demo="texture" id="example-texture" title="Checkerboard" width={640} height={360} />
+
+## Core code
+
+```javascript
+const size = 64;
+const bytesPerRow = 256;
+const pixels = new Uint8Array(bytesPerRow * size);
+// Fill two colors in 8×8 cells. The byte offset is y * bytesPerRow + x * 4.
+
+const texture = device.createTexture({
+  size: [size, size],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+});
+device.queue.writeTexture(
+  { texture },
+  pixels,
+  { bytesPerRow },
+  { width: size, height: size },
+);
+
+const sampler = device.createSampler({
+  magFilter: "nearest",
+  minFilter: "nearest",
+});
+
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: texture.createView() },
+    { binding: 1, resource: sampler },
+  ],
+});
+```
+
+```
+@group(0) @binding(0) var gradientTex: texture_2d<f32>;
+@group(0) @binding(1) var gradientSampler: sampler;
+
+@fragment
+fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+  return textureSample(gradientTex, gradientSampler, uv);
+}
+```
+
+## Next
+
+- [Depth buffer](/en/guides/depth/)
+- [Compute shaders](/en/guides/compute-shaders/)

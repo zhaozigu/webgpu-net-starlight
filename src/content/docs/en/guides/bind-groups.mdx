@@ -1,0 +1,105 @@
+---
+title: Bind Groups
+description: Pass buffers, textures, and samplers to a shader with GPUBindGroup
+sidebar:
+  order: 6
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+Vertex buffers have their own slots. Uniforms, storage buffers, textures, and samplers are packed into a bind group and attached with `setBindGroup()` before a draw or dispatch.
+
+Every external resource in WGSL names a group and a binding:
+
+```
+@group(0) @binding(0) var<uniform> colorUniforms: ColorUniforms;
+@group(0) @binding(1) var<uniform> scaleUniforms: ScaleUniforms;
+```
+
+`@group(0)` matches `setBindGroup(0, bindGroup)`. `@binding` matches `GPUBindGroupEntry.binding`. Use group and binding numbers from 0 without leaving holes.
+
+## Creating a bind group
+
+The demo uses `layout: "auto"`. After the pipeline is created, `getBindGroupLayout(0)` is the layout inferred for group 0.
+
+```javascript
+const colorBuffer = device.createBuffer({
+  size: 16,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+const scaleBuffer = device.createBuffer({
+  size: 16,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+
+const bindGroup = device.createBindGroup({
+  label: "Color and scale",
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: { buffer: colorBuffer } },
+    { binding: 1, resource: { buffer: scaleBuffer } },
+  ],
+});
+```
+
+`resource` may be:
+
+- A `GPUBufferBinding`: `{ buffer, offset?, size? }`. The specification also accepts a bare `GPUBuffer`, which means offset 0 and the whole buffer.
+- A `GPUSampler`.
+- A `GPUTextureView`. The specification also accepts a bare `GPUTexture`, which means its default view.
+
+A buffer binding `offset` has to satisfy the device limit. The default `minUniformBufferOffsetAlignment` is 256, so a non-zero uniform offset must be a multiple of 256. The samples start at offset 0.
+
+At draw time:
+
+```javascript
+pass.setPipeline(pipeline);
+pass.setBindGroup(0, bindGroup);
+pass.draw(3);
+```
+
+A bind group can be reused across frames. If the buffer contents change, update them with `writeBuffer()`. The bind group does not need to be recreated.
+
+## Explicit layout
+
+`"auto"` is enough for samples. When materials are fixed and you want to choose the visible stages yourself, create the layout first and hand it to the pipeline:
+
+```javascript
+const bindGroupLayout = device.createBindGroupLayout({
+  entries: [
+    {
+      binding: 0,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: "uniform" },
+    },
+    {
+      binding: 1,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    },
+  ],
+});
+
+const pipelineLayout = device.createPipelineLayout({
+  bindGroupLayouts: [bindGroupLayout],
+});
+
+const pipeline = device.createRenderPipeline({
+  layout: pipelineLayout,
+  // vertex and fragment match the auto layout sample
+});
+```
+
+Combine `GPUShaderStage.VERTEX`, `FRAGMENT`, and `COMPUTE` for `visibility`. A color that is only read in the fragment shader should not be visible to the vertex stage. `buffer.type` is `"uniform"`, `"storage"`, or `"read-only-storage"`.
+
+An explicit layout must match the WGSL declarations: binding numbers, resource kinds, and texture formats. A mismatch produces an invalid pipeline. The error is reported through `uncapturederror` or `pushErrorScope("validation")`.
+
+## Demo
+
+Binding 0 is the fragment color and binding 1 is the vertex scale. Both buffers live in one group, so the triangle changes color and size together.
+
+<WebGPULesson demo="bind-group" id="guide-bind-group" title="Two resources in one bind group" />
+
+## Next
+
+A bind group only selects which resource is attached to which number. The memory layout of a uniform struct is covered in [uniform buffers](/en/guides/uniforms/). See [GPUBindGroup](/en/reference/gpu-bind-group/) for the interface.

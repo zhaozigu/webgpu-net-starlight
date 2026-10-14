@@ -1,0 +1,180 @@
+---
+title: Compute Shaders
+description: Write a storage texture from a compute pipeline and read a storage buffer back
+sidebar:
+  order: 10
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+A compute shader does not emit vertices and does not write a color attachment. It runs in parallel workgroups and stores results in a storage buffer or a storage texture. That fits particles, image processing, and data prepared for a later render pipeline.
+
+## Workgroups
+
+The entry point has both `@compute` and `@workgroup_size`. The size is a compile-time constant. The product of the three dimensions cannot exceed `maxComputeInvocationsPerWorkgroup` (at least 256 by default).
+
+```
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  // id.xy is the global index across the whole dispatch
+}
+```
+
+JavaScript dispatches a workgroup count, not a thread count:
+
+```javascript
+pass.dispatchWorkgroups(
+  Math.ceil(textureWidth / 8),
+  Math.ceil(textureHeight / 8),
+);
+```
+
+The dispatch can be larger than the data. The entry point should discard extra invocations with the texture size or `arrayLength()`.
+
+Common builtins:
+
+| Builtin | Meaning |
+| --- | --- |
+| `global_invocation_id` | Global thread index |
+| `local_invocation_id` | Index inside the workgroup |
+| `workgroup_id` | Workgroup index |
+| `num_workgroups` | Size of this `dispatchWorkgroups` call |
+
+## Storage texture
+
+`"rgba8unorm"` can be a `"write-only"` storage texture without an extra feature. The canvas format may be `"bgra8unorm"`, which is not a storage format unless the `bgra8unorm-storage` feature is enabled. Create a separate compute target and sample it into the canvas.
+
+```javascript
+const storageTexture = device.createTexture({
+  size: [canvas.width, canvas.height],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+});
+```
+
+WGSL access `write` corresponds to `"write-only"` in the bind-group layout. `read` and `read_write` are not the same capability on every format. This demo only writes.
+
+```
+@group(0) @binding(0) var outputTex: texture_storage_2d<rgba8unorm, write>;
+
+struct Params {
+  time: f32,
+}
+
+@group(0) @binding(1) var<uniform> params: Params;
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  let size = textureDimensions(outputTex);
+  if (id.x >= size.x || id.y >= size.y) {
+    return;
+  }
+
+  let uv = vec2f(f32(id.x) / f32(size.x), f32(id.y) / f32(size.y));
+  let wave = 0.5 + 0.5 * sin(uv.x * 18.0 + params.time * 2.0);
+  let color = vec4f(uv.x, wave * (1.0 - uv.y), 0.35 + 0.65 * uv.y, 1.0);
+  textureStore(outputTex, vec2i(i32(id.x), i32(id.y)), color);
+}
+```
+
+`textureStore()` takes a `vec2i` coordinate. `global_invocation_id` is a `vec3u`, so convert the components to `i32` first.
+
+A compute pass and a render pass can share one command encoder. The same texture cannot be stored and sampled inside one pass. Call `end()` on the compute pass before `beginRenderPass()`.
+
+```javascript
+const encoder = device.createCommandEncoder();
+
+const computePass = encoder.beginComputePass();
+computePass.setPipeline(computePipeline);
+computePass.setBindGroup(0, computeBindGroup);
+computePass.dispatchWorkgroups(workgroupsX, workgroupsY);
+computePass.end();
+
+const renderPass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+});
+renderPass.setPipeline(renderPipeline);
+renderPass.setBindGroup(0, renderBindGroup);
+renderPass.draw(3);
+renderPass.end();
+
+device.queue.submit([encoder.finish()]);
+```
+
+The render pipeline samples the storage texture with one triangle that covers clip space. `@group` is per pipeline, so both pipelines may use group 0 with different resources.
+
+## Reading a storage buffer back
+
+A storage texture is convenient to display. For numeric results, compute into a storage buffer and copy into a buffer that can be mapped for reading. `MAP_READ` may only be combined with `COPY_DST`. It cannot also be `STORAGE`.
+
+```
+@group(0) @binding(0) var<storage, read_write> data: array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= arrayLength(&data)) {
+    return;
+  }
+  data[id.x] = f32(id.x) * 0.5;
+}
+```
+
+`shaderCode` in the JavaScript is the WGSL above.
+
+```javascript
+const count = 64;
+const byteLength = count * 4;
+
+const storageBuffer = device.createBuffer({
+  size: byteLength,
+  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+});
+const readBuffer = device.createBuffer({
+  size: byteLength,
+  usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+});
+
+const shaderModule = device.createShaderModule({
+  code: shaderCode,
+});
+
+const pipeline = device.createComputePipeline({
+  layout: "auto",
+  compute: { module: shaderModule, entryPoint: "main" },
+});
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [{ binding: 0, resource: { buffer: storageBuffer } }],
+});
+
+const encoder = device.createCommandEncoder();
+const pass = encoder.beginComputePass();
+pass.setPipeline(pipeline);
+pass.setBindGroup(0, bindGroup);
+pass.dispatchWorkgroups(1);
+pass.end();
+encoder.copyBufferToBuffer(storageBuffer, 0, readBuffer, 0, byteLength);
+device.queue.submit([encoder.finish()]);
+
+await readBuffer.mapAsync(GPUMapMode.READ);
+const result = Float32Array.from(new Float32Array(readBuffer.getMappedRange()));
+readBuffer.unmap();
+```
+
+`mapAsync()` waits until the GPU has finished using that readable buffer. After `unmap()`, the mapped `ArrayBuffer` is detached, so copy the values out first. `arrayLength(&data)` expects a pointer to a runtime-sized array.
+
+## Demo
+
+The compute shader writes an `"rgba8unorm"` storage texture. Time comes from a 16-byte uniform. A render pipeline then draws that texture across the canvas.
+
+<WebGPULesson demo="compute" id="guide-compute" title="Image written by a compute shader" />
+
+## Next
+
+The graphics and compute command paths are both in place. Interface notes continue in the [API reference](/en/reference/example/), and short runnable pages are in the [examples](/en/examples/triangle/).
