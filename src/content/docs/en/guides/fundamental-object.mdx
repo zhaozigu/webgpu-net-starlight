@@ -2,7 +2,7 @@
 title: Fundamental Objects
 description: Create a GPUAdapter, GPUDevice, command encoder, and queue, then submit drawing commands to the GPU.
 sidebar:
-  order: 3
+  order: 2
 ---
 
 WebGPU is relatively more complex compared to WebGL. To develop with WebGPU, you need to create and configure many JavaScript objects. The ultimate goal of these objects can be summarized as **sending commands to the GPU**.
@@ -197,3 +197,7 @@ context.configure({
   format: canvasFormat,
 });
 ```
+
+## Next
+
+Once the canvas is configured, shaders are written in [WGSL](/en/guides/wgsl/).

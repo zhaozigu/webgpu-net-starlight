@@ -1,0 +1,72 @@
+---
+import "./webgpu-lesson.css";
+
+export interface Props {
+  demo: "vertex-buffer" | "uniform" | "bind-group" | "texture" | "depth" | "compute";
+  id?: string;
+  width?: number;
+  height?: number;
+  title?: string;
+  depth?: boolean;
+}
+
+const defaultTitles = {
+  "vertex-buffer": "顶点缓冲区",
+  uniform: "Uniform 缓冲区",
+  "bind-group": "绑定组",
+  texture: "纹理与采样器",
+  depth: "深度缓冲",
+  compute: "计算着色器",
+};
+
+const {
+  demo,
+  id = `${demo}-canvas`,
+  width = 640,
+  height = 360,
+  title = defaultTitles[demo],
+  depth = true,
+} = Astro.props;
+
+if (!defaultTitles[demo]) {
+  throw new Error(`Unknown WebGPU lesson demo: ${demo}`);
+}
+
+const messages = {
+  error: Astro.locals.t("webgpu.demo.error"),
+  notSupported: Astro.locals.t("webgpu.demo.errors.notSupported"),
+  noAdapter: Astro.locals.t("webgpu.demo.errors.noAdapter"),
+  canvasNotFound: Astro.locals.t("webgpu.demo.errors.canvasNotFound"),
+  noContext: Astro.locals.t("webgpu.demo.errors.noContext"),
+  initFailed: Astro.locals.t("webgpu.demo.errors.initFailed"),
+};
+---
+
+<div
+  class="webgpu-lesson"
+  data-demo={demo}
+  data-canvas-id={id}
+  data-depth={depth ? "true" : "false"}
+  data-messages={JSON.stringify(messages)}
+>
+  <h3>{title}</h3>
+  <canvas id={id} width={width} height={height}></canvas>
+  <div id={`${id}-error`} class="error-message" style="display: none;"></div>
+</div>
+
+<script>
+  import { mountDemos } from "../scripts/webgpu-demo.js";
+  import { mountVertexBufferDemo } from "../scripts/vertex-buffer-demo.js";
+  import { mountUniformDemo } from "../scripts/uniform-demo.js";
+  import { mountBindGroupDemo } from "../scripts/bind-group-demo.js";
+  import { mountTextureDemo } from "../scripts/texture-demo.js";
+  import { mountDepthDemo } from "../scripts/depth-demo.js";
+  import { mountComputeDemo } from "../scripts/compute-demo.js";
+
+  mountDemos("vertex-buffer", mountVertexBufferDemo);
+  mountDemos("uniform", mountUniformDemo);
+  mountDemos("bind-group", mountBindGroupDemo);
+  mountDemos("texture", mountTextureDemo);
+  mountDemos("depth", mountDepthDemo);
+  mountDemos("compute", mountComputeDemo);
+</script>

@@ -1,0 +1,132 @@
+---
+title: Buffers
+description: Upload vertex and index data with GPUBuffer
+sidebar:
+  order: 5
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+The earlier triangles stored positions in a WGSL array. Meshes, particles, and UI vertices belong in a `GPUBuffer`, bound with `setVertexBuffer()` while drawing.
+
+## Creating a vertex buffer
+
+`size` is in bytes and must be a multiple of 4. `usage` decides what the memory can do later. A vertex buffer needs `GPUBufferUsage.VERTEX`. Add `COPY_DST` when the data is uploaded with `queue.writeBuffer()`.
+
+```javascript
+// x, y, r, g, b
+const vertices = new Float32Array([
+  0.0, 0.5, 1.0, 0.25, 0.2,
+  -0.5, -0.5, 0.2, 0.85, 0.35,
+  0.5, -0.5, 0.25, 0.45, 1.0,
+]);
+
+const vertexBuffer = device.createBuffer({
+  label: "Colored triangle vertices",
+  size: vertices.byteLength,
+  usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(vertexBuffer, 0, vertices);
+```
+
+The destination offset of `writeBuffer()` must also be a multiple of 4. The call copies the bytes from the `ArrayBuffer` or typed array into the queue. The source array can be changed after the call returns.
+
+You can also map the buffer at creation, write it, and `unmap()`. That buffer does not need `COPY_DST`, but it cannot be submitted while it is mapped:
+
+```javascript
+const vertexBuffer = device.createBuffer({
+  size: vertices.byteLength,
+  usage: GPUBufferUsage.VERTEX,
+  mappedAtCreation: true,
+});
+new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
+vertexBuffer.unmap();
+```
+
+## Vertex layout
+
+`vertex.buffers` describes the byte stride of one vertex and the `@location` of each field.
+
+```javascript
+buffers: [
+  {
+    arrayStride: 5 * 4,
+    attributes: [
+      { shaderLocation: 0, offset: 0, format: "float32x2" },
+      { shaderLocation: 1, offset: 8, format: "float32x3" },
+    ],
+  },
+],
+```
+
+- `arrayStride` is the distance in bytes from one vertex to the next, and it must be a multiple of 4. Five `f32` values are 20 bytes.
+- `offset` is the start of that field inside the vertex. `float32x2` occupies 8 bytes, so the color starts at byte 8.
+- `format` matches the WGSL parameter: `float32x2` for `vec2f`, `float32x3` for `vec3f`.
+- `shaderLocation` matches the shader parameter `@location`. It is not the bind-group `@binding`.
+
+```
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(
+  @location(0) position: vec2f,
+  @location(1) color: vec3f,
+) -> VertexOut {
+  var out: VertexOut;
+  out.position = vec4f(position, 0.0, 1.0);
+  out.color = color;
+  return out;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec3f) -> @location(0) vec4f {
+  return vec4f(color, 1.0);
+}
+```
+
+Slot 0 matches `buffers[0]`:
+
+```javascript
+pass.setPipeline(pipeline);
+pass.setVertexBuffer(0, vertexBuffer);
+pass.draw(3);
+```
+
+## Index buffer
+
+A rectangle has four vertices and two triangles. An index buffer stores vertex numbers so shared vertices are not duplicated. The index format is `"uint16"` or `"uint32"`.
+
+```javascript
+const vertices = new Float32Array([
+  -0.5, -0.5,
+  0.5, -0.5,
+  0.5, 0.5,
+  -0.5, 0.5,
+]);
+const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
+
+const indexBuffer = device.createBuffer({
+  size: indices.byteLength, // 12, already a multiple of 4
+  usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(indexBuffer, 0, indices);
+
+pass.setVertexBuffer(0, vertexBuffer);
+pass.setIndexBuffer(indexBuffer, "uint16");
+pass.drawIndexed(indices.length);
+```
+
+`drawIndexed(6)` reads six indices. Under `"triangle-list"` that is two triangles. A strip topology that uses an index buffer also sets `primitive.stripIndexFormat` to the same index format.
+
+## Demo
+
+Both positions and colors come from the buffer. The gradient matches the WGSL chapter, but the data path is now a `GPUBuffer`.
+
+<WebGPULesson demo="vertex-buffer" id="guide-vertex-buffer" title="Drawn from a vertex buffer" />
+
+## Next
+
+After a buffer exists, a [bind group](/en/guides/bind-groups/) is what exposes uniforms and storage to the shader. See [GPUBuffer](/en/reference/gpu-buffer/) for the interface.

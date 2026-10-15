@@ -1,0 +1,116 @@
+---
+title: Depth Buffer
+description: Resolve occlusion with depth24plus and depthCompare
+sidebar:
+  order: 9
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+With only draw order, the triangle drawn later covers the one drawn earlier, even when it is farther away. A depth buffer stores one depth per pixel. A fragment that fails the depth test does not update the color.
+
+## Coordinates
+
+`@builtin(position)` is clip space. When `w` is 1, the NDC z is the z you wrote. In WebGPU, 0 is the near plane and 1 is the far plane. That is not the older OpenGL clip range.
+
+In the demo the blue triangle has z = 0.3 and the red triangle has z = 0.6, so blue is closer. Blue is drawn first. Without a depth test, the later red triangle covers the overlap.
+
+## Depth texture
+
+`"depth24plus"` is a core depth format. An implementation may store it as 24-bit depth or as 32-bit float depth. It can be a render attachment. Its depth values cannot be copied with `copyBufferToTexture()`.
+
+```javascript
+const depthTexture = device.createTexture({
+  size: [canvas.width, canvas.height],
+  format: "depth24plus",
+  usage: GPUTextureUsage.RENDER_ATTACHMENT,
+});
+```
+
+The size must match the color attachment: the canvas drawing-buffer `width` and `height`, not CSS pixels.
+
+## Pipeline and pass
+
+The pipeline names the depth format and the compare function. The pass clears depth to 1, so any closer fragment (a smaller z) passes a `"less"` test.
+
+```javascript
+const pipeline = device.createRenderPipeline({
+  layout: "auto",
+  vertex: {
+    module,
+    entryPoint: "vs_main",
+    buffers: [
+      {
+        arrayStride: 6 * 4,
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: "float32x3" },
+          { shaderLocation: 1, offset: 12, format: "float32x3" },
+        ],
+      },
+    ],
+  },
+  fragment: {
+    module,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: { topology: "triangle-list" },
+  depthStencil: {
+    format: "depth24plus",
+    depthWriteEnabled: true,
+    depthCompare: "less",
+  },
+});
+```
+
+```javascript
+const pass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+  depthStencilAttachment: {
+    view: depthTexture.createView(),
+    depthClearValue: 1,
+    depthLoadOp: "clear",
+    depthStoreOp: "discard",
+  },
+});
+```
+
+`depthStoreOp: "discard"` drops the depth contents at the end of the pass. Use it when this frame will not read the depth again. To keep it for a later pass, use `"store"` and set the next `depthLoadOp` to `"load"`.
+
+`depthCompare` can also be `"less-equal"`, `"greater"`, `"always"`, and the other compare functions. Transparent surfaces sometimes leave `depthWriteEnabled` off while still testing. Opaque surfaces usually write and test.
+
+The vertex shader writes the buffered `vec3f` straight into clip space:
+
+```
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(@location(0) position: vec3f, @location(1) color: vec3f) -> VertexOut {
+  var out: VertexOut;
+  out.position = vec4f(position, 1.0);
+  out.color = color;
+  return out;
+}
+```
+
+## Demo
+
+Both canvases use the same vertices: the closer blue triangle first, then the farther red triangle. The first canvas enables the depth test, so the overlap stays blue. The second has no depth attachment, so the later red triangle covers the blue one.
+
+<WebGPULesson demo="depth" id="guide-depth-on" title="depthCompare is less" depth={true} />
+
+<WebGPULesson demo="depth" id="guide-depth-off" title="No depth attachment" depth={false} />
+
+## Next
+
+Outside the graphics pass, the GPU can run a [compute shader](/en/guides/compute-shaders/) with no rasterizer.

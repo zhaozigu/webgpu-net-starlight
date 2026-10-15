@@ -1,0 +1,180 @@
+---
+title: 计算着色器
+description: 用计算管线写入存储纹理，并把存储缓冲读回 CPU
+sidebar:
+  order: 10
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+计算着色器不产生顶点，也不写颜色附件。它按工作组并行执行，结果放在存储缓冲或存储纹理里。适合粒子、图像处理和把数据准备好再交给渲染管线。
+
+## 工作组
+
+入口同时带有 `@compute` 和 `@workgroup_size`。尺寸必须是编译期常量，三个维度的乘积不能超过设备限制 `maxComputeInvocationsPerWorkgroup`（默认至少 256）。
+
+```
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  // id.xy 是整个 dispatch 里的全局编号
+}
+```
+
+JavaScript 调用的是工作组个数，不是线程个数：
+
+```javascript
+pass.dispatchWorkgroups(
+  Math.ceil(textureWidth / 8),
+  Math.ceil(textureHeight / 8),
+);
+```
+
+调度范围可能比数据大，入口里要用纹理尺寸或 `arrayLength()` 把多余的调用丢掉。
+
+常用内置变量：
+
+| 内置变量 | 含义 |
+| --- | --- |
+| `global_invocation_id` | 全局线程编号 |
+| `local_invocation_id` | 工作组内编号 |
+| `workgroup_id` | 工作组编号 |
+| `num_workgroups` | 这次 `dispatchWorkgroups` 的规模 |
+
+## 存储纹理
+
+`"rgba8unorm"` 可以作为 `write-only` 存储纹理，不需要额外 feature。画布格式可能是 `"bgra8unorm"`，它默认不能当存储纹理，所以计算目标要单独创建，再用一次渲染采样到画布上。
+
+```javascript
+const storageTexture = device.createTexture({
+  size: [canvas.width, canvas.height],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+});
+```
+
+WGSL 的 `write` 对应布局里的 `"write-only"`。`read` 和 `read_write` 对这个格式的支持不一样，演示只写入。
+
+```
+@group(0) @binding(0) var outputTex: texture_storage_2d<rgba8unorm, write>;
+
+struct Params {
+  time: f32,
+}
+
+@group(0) @binding(1) var<uniform> params: Params;
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  let size = textureDimensions(outputTex);
+  if (id.x >= size.x || id.y >= size.y) {
+    return;
+  }
+
+  let uv = vec2f(f32(id.x) / f32(size.x), f32(id.y) / f32(size.y));
+  let wave = 0.5 + 0.5 * sin(uv.x * 18.0 + params.time * 2.0);
+  let color = vec4f(uv.x, wave * (1.0 - uv.y), 0.35 + 0.65 * uv.y, 1.0);
+  textureStore(outputTex, vec2i(i32(id.x), i32(id.y)), color);
+}
+```
+
+`textureStore()` 的坐标类型是 `vec2i`。`global_invocation_id` 是 `vec3u`，需要先转换成 `i32`。
+
+计算通道和渲染通道可以录在同一个命令编码器里，但同一张纹理不能在同一个通道里既作为存储纹理写入、又作为普通纹理采样。先 `end()` 计算通道，再 `beginRenderPass()`。
+
+```javascript
+const encoder = device.createCommandEncoder();
+
+const computePass = encoder.beginComputePass();
+computePass.setPipeline(computePipeline);
+computePass.setBindGroup(0, computeBindGroup);
+computePass.dispatchWorkgroups(workgroupsX, workgroupsY);
+computePass.end();
+
+const renderPass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+});
+renderPass.setPipeline(renderPipeline);
+renderPass.setBindGroup(0, renderBindGroup);
+renderPass.draw(3);
+renderPass.end();
+
+device.queue.submit([encoder.finish()]);
+```
+
+渲染那边用一个盖住裁剪空间的三角形把存储纹理采样出来。`@group` 属于各自的管线，计算管线和渲染管线可以都使用 group 0，绑定的资源不同。
+
+## 把存储缓冲读回来
+
+存储纹理适合直接显示。需要数字结果时，用存储缓冲计算，再复制到一块只能映射读取的缓冲。`MAP_READ` 只能和 `COPY_DST` 组合，不能直接标成 `STORAGE`。
+
+```
+@group(0) @binding(0) var<storage, read_write> data: array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) id: vec3u) {
+  if (id.x >= arrayLength(&data)) {
+    return;
+  }
+  data[id.x] = f32(id.x) * 0.5;
+}
+```
+
+下面的 `shaderCode` 就是这段 WGSL。
+
+```javascript
+const count = 64;
+const byteLength = count * 4;
+
+const storageBuffer = device.createBuffer({
+  size: byteLength,
+  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+});
+const readBuffer = device.createBuffer({
+  size: byteLength,
+  usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+});
+
+const shaderModule = device.createShaderModule({
+  code: shaderCode,
+});
+
+const pipeline = device.createComputePipeline({
+  layout: "auto",
+  compute: { module: shaderModule, entryPoint: "main" },
+});
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [{ binding: 0, resource: { buffer: storageBuffer } }],
+});
+
+const encoder = device.createCommandEncoder();
+const pass = encoder.beginComputePass();
+pass.setPipeline(pipeline);
+pass.setBindGroup(0, bindGroup);
+pass.dispatchWorkgroups(1);
+pass.end();
+encoder.copyBufferToBuffer(storageBuffer, 0, readBuffer, 0, byteLength);
+device.queue.submit([encoder.finish()]);
+
+await readBuffer.mapAsync(GPUMapMode.READ);
+const result = Float32Array.from(new Float32Array(readBuffer.getMappedRange()));
+readBuffer.unmap();
+```
+
+`mapAsync()` 会等到 GPU 用完这块可读缓冲。`unmap()` 之后映射出来的 `ArrayBuffer` 失效，所以要先把数据复制出来。`arrayLength(&data)` 需要的是指向运行时数组的指针。
+
+## 演示
+
+计算着色器按像素写入一张 `"rgba8unorm"` 存储纹理，时间来自一个 16 字节的 uniform。渲染管线再把这张纹理画满画布。
+
+<WebGPULesson demo="compute" id="guide-compute" title="计算着色器写入的图像" />
+
+## 下一步
+
+到这里，图形和计算两条命令路径都齐了。接口说明从 [API 参考](/reference/example/) 继续，可运行的短例子在[实例](/examples/triangle/)。

@@ -1,0 +1,105 @@
+---
+title: 绑定组
+description: 用 GPUBindGroup 把缓冲、纹理和采样器交给着色器
+sidebar:
+  order: 6
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+顶点缓冲有自己的槽位。uniform、存储缓冲、纹理和采样器不走 `setVertexBuffer()`，而是编成绑定组，在绘制或 dispatch 前用 `setBindGroup()` 绑上。
+
+着色器里的每一项资源都要声明组号和绑定号：
+
+```
+@group(0) @binding(0) var<uniform> colorUniforms: ColorUniforms;
+@group(0) @binding(1) var<uniform> scaleUniforms: ScaleUniforms;
+```
+
+`@group(0)` 对应 `setBindGroup(0, bindGroup)`。`@binding` 对应 `GPUBindGroupEntry.binding`。组号和绑定号都从 0 连续使用，不要在中间留空号。
+
+## 创建绑定组
+
+演示使用 `layout: "auto"`。管线创建成功后，`getBindGroupLayout(0)` 就是着色器第 0 组推断出来的布局。
+
+```javascript
+const colorBuffer = device.createBuffer({
+  size: 16,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+const scaleBuffer = device.createBuffer({
+  size: 16,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+
+const bindGroup = device.createBindGroup({
+  label: "颜色和缩放",
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: { buffer: colorBuffer } },
+    { binding: 1, resource: { buffer: scaleBuffer } },
+  ],
+});
+```
+
+`resource` 可以是：
+
+- `GPUBufferBinding`：`{ buffer, offset?, size? }`。规范也允许直接传 `GPUBuffer`，表示偏移 0、使用整个缓冲。
+- `GPUSampler`
+- `GPUTextureView`。规范也允许直接传 `GPUTexture`，表示它的默认视图。
+
+缓冲绑定的 `offset` 要满足设备限制。uniform 的默认 `minUniformBufferOffsetAlignment` 是 256，所以非零偏移必须是 256 的倍数。示例都从 0 开始，避开这个限制。
+
+绘制时：
+
+```javascript
+pass.setPipeline(pipeline);
+pass.setBindGroup(0, bindGroup);
+pass.draw(3);
+```
+
+绑定组可以跨帧复用。里面的缓冲内容变了，不需要重建绑定组，下一次 `writeBuffer()` 之后再绘制即可。
+
+## 显式布局
+
+`"auto"` 适合示例。材质种类固定、想自己控制可见阶段时，可以先创建布局，再交给管线：
+
+```javascript
+const bindGroupLayout = device.createBindGroupLayout({
+  entries: [
+    {
+      binding: 0,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: "uniform" },
+    },
+    {
+      binding: 1,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "uniform" },
+    },
+  ],
+});
+
+const pipelineLayout = device.createPipelineLayout({
+  bindGroupLayouts: [bindGroupLayout],
+});
+
+const pipeline = device.createRenderPipeline({
+  layout: pipelineLayout,
+  // vertex / fragment 与 auto 时相同
+});
+```
+
+`visibility` 用 `GPUShaderStage.VERTEX`、`FRAGMENT`、`COMPUTE` 组合。颜色只在片元着色器里读，就不要标成顶点阶段可见。`buffer.type` 是 `"uniform"`、`"storage"` 或 `"read-only-storage"`。
+
+显式布局必须和 WGSL 声明一致，包括绑定号、资源种类和纹理格式。对不上时，管线会变成无效对象，错误从 `uncapturederror` 或 `pushErrorScope("validation")` 里出来。
+
+## 演示
+
+绑定 0 是片元颜色，绑定 1 是顶点缩放。两个缓冲放在同一个组里，三角形会一起变色、变大。
+
+<WebGPULesson demo="bind-group" id="guide-bind-group" title="一个绑定组里的两项资源" />
+
+## 下一步
+
+绑定组只负责“哪块资源接到哪个编号”。Uniform 结构体在内存里怎么排，见 [Uniform 缓冲区](/guides/uniforms/)。接口见 [GPUBindGroup](/reference/gpu-bind-group/)。

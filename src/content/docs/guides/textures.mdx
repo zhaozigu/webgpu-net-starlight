@@ -1,0 +1,118 @@
+---
+title: 纹理与采样器
+description: 创建 GPUTexture，用 writeTexture 上传像素，再用采样器读取
+sidebar:
+  order: 8
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+纹理保存像素，采样器决定读取时怎么过滤、坐标超出 0 到 1 时怎么处理。两者是分开的对象：同一张纹理可以配最近邻采样，也可以配线性采样。
+
+## 创建纹理
+
+演示用 64×64 的 `"rgba8unorm"`。这个格式每个纹素 4 字节，可以被采样，也可以作为 `writeTexture()` 的目标。
+
+```javascript
+const texture = device.createTexture({
+  label: "棋盘格",
+  size: [64, 64],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+});
+```
+
+`size` 也可以写成 `{ width: 64, height: 64 }`。`dimension` 默认 `"2d"`，`mipLevelCount` 和 `sampleCount` 默认 1。
+
+## 上传像素
+
+`writeTexture()` 的行跨度 `bytesPerRow` 必须是 256 的倍数。64 个像素乘 4 字节正好是 256，所以这一行不用再补空字节。高度大于 1 时必须提供 `bytesPerRow`。
+
+```javascript
+const size = 64;
+const bytesPerRow = 256;
+const pixels = new Uint8Array(bytesPerRow * size);
+
+for (let y = 0; y < size; y++) {
+  for (let x = 0; x < size; x++) {
+    const checker = ((x >> 3) ^ (y >> 3)) & 1;
+    const offset = y * bytesPerRow + x * 4;
+    pixels[offset] = checker ? 232 : 28;
+    pixels[offset + 1] = checker ? 164 : 78;
+    pixels[offset + 2] = checker ? 64 : 130;
+    pixels[offset + 3] = 255;
+  }
+}
+
+device.queue.writeTexture(
+  { texture },
+  pixels,
+  { bytesPerRow },
+  { width: size, height: size },
+);
+```
+
+如果图片来自 `ImageBitmap` 或另一块画布，可以用 `copyExternalImageToTexture()`。那种目标纹理的 `usage` 必须同时包含 `COPY_DST` 和 `RENDER_ATTACHMENT`，格式还得是支持作为渲染目标的 unorm 或 float 颜色格式。
+
+## 采样器
+
+```javascript
+const sampler = device.createSampler({
+  magFilter: "nearest",
+  minFilter: "nearest",
+  addressModeU: "clamp-to-edge",
+  addressModeV: "clamp-to-edge",
+});
+```
+
+`magFilter` 和 `minFilter` 是 `"nearest"` 或 `"linear"`。棋盘格用 `"nearest"`，放大后格子边界仍然清楚。`addressModeU` / `addressModeV` 可以是 `"clamp-to-edge"`、`"repeat"` 或 `"mirror-repeat"`，默认是 `"clamp-to-edge"`。
+
+片元着色器里用 `textureSample()`。它必须出现在均匀控制流中，所以不要把它放进依赖片元坐标的分支里。
+
+```
+@group(0) @binding(0) var gradientTex: texture_2d<f32>;
+@group(0) @binding(1) var gradientSampler: sampler;
+
+@fragment
+fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+  return textureSample(gradientTex, gradientSampler, uv);
+}
+```
+
+变量不能叫 `sampler`，那是类型名。`textureSample()` 会让自动布局把采样器当成 `"filtering"`。只做 `textureLoad()` 时才使用 `"non-filtering"` 采样器。
+
+纹理坐标 (0, 0) 是 `writeTexture()` 写入的第一个纹素。四边形顶点按下面的 UV 对应，画面上的第一行会出现在四边形顶部：
+
+```javascript
+const vertices = new Float32Array([
+  // x, y, u, v
+  -0.7, -0.7, 0, 1,
+  0.7, -0.7, 1, 1,
+  0.7, 0.7, 1, 0,
+  -0.7, -0.7, 0, 1,
+  0.7, 0.7, 1, 0,
+  -0.7, 0.7, 0, 0,
+]);
+```
+
+绑定组里把视图和采样器放在一起。直接传 `GPUTexture` 也可以，规范会把它当作默认视图；这里显式调用 `createView()`。
+
+```javascript
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: texture.createView() },
+    { binding: 1, resource: sampler },
+  ],
+});
+```
+
+## 演示
+
+8×8 像素为一格的棋盘格贴在两个三角形拼成的四边形上。
+
+<WebGPULesson demo="texture" id="guide-texture" title="最近邻采样的棋盘格" />
+
+## 下一步
+
+重叠的三角形还分不出前后。下一章加上[深度缓冲](/guides/depth/)。纹理和采样器的字段见 [GPUTexture](/reference/gpu-texture/) 与 [GPUSampler](/reference/gpu-sampler/)。

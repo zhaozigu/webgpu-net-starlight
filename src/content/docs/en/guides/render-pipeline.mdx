@@ -1,0 +1,157 @@
+---
+title: Render Pipeline
+description: Shader modules, render pipelines, and render passes that draw into a canvas
+sidebar:
+  order: 4
+---
+
+import WebGPUCanvas from '@/components/WebGPUCanvas.astro';
+
+A render pipeline describes how the GPU turns vertices into pixels: which shaders run, how primitives are assembled, and which texture format receives the color. It is created before drawing. A draw call only binds it and calls `draw()`.
+
+The [triangle example](/en/examples/triangle/) already runs one pipeline. This chapter separates the steps.
+
+## Shader module
+
+WGSL source is compiled into a `GPUShaderModule`. `createShaderModule()` does not throw on compilation errors. Read `getCompilationInfo()`:
+
+```javascript
+const shaderModule = device.createShaderModule({
+  label: "Triangle shader",
+  code: wgslSource,
+});
+
+const info = await shaderModule.getCompilationInfo();
+const errors = info.messages.filter((message) => message.type === "error");
+if (errors.length > 0) {
+  throw new Error(errors.map((message) => message.message).join("\n"));
+}
+```
+
+The vertex and fragment entry points may share one module or live in two modules.
+
+## Creating the pipeline
+
+```javascript
+const pipeline = device.createRenderPipeline({
+  label: "Triangle pipeline",
+  layout: "auto",
+  vertex: {
+    module: shaderModule,
+    entryPoint: "vs_main",
+  },
+  fragment: {
+    module: shaderModule,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: {
+    topology: "triangle-list",
+  },
+});
+```
+
+- `layout: "auto"` builds a pipeline layout from the `@group` and `@binding` attributes in the shader. It is the short path when the shader has no external resources. An explicit layout is shown with [bind groups](/en/guides/bind-groups/).
+- `vertex.entryPoint` must name an `@vertex` function.
+- `fragment.targets[0].format` must match the color attachment. For a canvas, use the result of `navigator.gpu.getPreferredCanvasFormat()`, which is `"bgra8unorm"` or `"rgba8unorm"`.
+- `primitive.topology` controls how vertices become primitives. The default is `"triangle-list"`: every three vertices form one triangle.
+
+Common topologies:
+
+| topology | Meaning |
+| --- | --- |
+| `"triangle-list"` | Independent triangle for every 3 vertices |
+| `"triangle-strip"` | Adjacent triangles share an edge |
+| `"line-list"` | Independent line segment for every 2 vertices |
+| `"line-strip"` | A polyline through successive vertices |
+| `"point-list"` | One point per vertex |
+
+`frontFace` defaults to `"ccw"` and `cullMode` defaults to `"none"`.
+
+## Render pass
+
+The pipeline does not draw by itself. Each frame records commands:
+
+1. Call `context.getCurrentTexture()`, then `createView()`. Do not reuse that view on the next frame.
+2. `beginRenderPass()` names the color attachment. `loadOp: "clear"` fills it with `clearValue`. `storeOp: "store"` keeps the result.
+3. Call `setPipeline()`, then `setVertexBuffer()` and `setBindGroup()` when needed, then `draw(vertexCount)`.
+4. Call `pass.end()`, `encoder.finish()`, and `device.queue.submit()`.
+
+```javascript
+const encoder = device.createCommandEncoder();
+const pass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+});
+pass.setPipeline(pipeline);
+pass.draw(3);
+pass.end();
+device.queue.submit([encoder.finish()]);
+```
+
+The argument to `draw(3)` is a vertex count, not a triangle count. Under `"triangle-list"`, three vertices make one triangle. The positions can still live in a WGSL array, as they do in the triangle example. The next chapter reads them from a buffer instead.
+
+## Demo
+
+The same triangle is filled with `"triangle-list"` and outlined with `"line-strip"`. The outline repeats the first vertex, so it draws four vertices.
+
+<WebGPUCanvas
+  id="pipeline-fill"
+  title="triangle-list"
+  width={480}
+  height={300}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.55),
+    vec2f(-0.55, -0.5),
+    vec2f(0.55, -0.5),
+  );
+  return vec4f(positions[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(0.95, 0.45, 0.2, 1.0);
+}
+  `}
+/>
+
+<WebGPUCanvas
+  id="pipeline-lines"
+  title="line-strip"
+  width={480}
+  height={300}
+  topology="line-strip"
+  vertexCount={4}
+  vertexShader={`
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 4>(
+    vec2f(0.0, 0.55),
+    vec2f(-0.55, -0.5),
+    vec2f(0.55, -0.5),
+    vec2f(0.0, 0.55),
+  );
+  return vec4f(positions[vertexIndex], 0.0, 1.0);
+}
+  `}
+  fragmentShader={`
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return vec4f(0.35, 0.75, 0.95, 1.0);
+}
+  `}
+/>
+
+## Next
+
+Move the coordinates into a [buffer](/en/guides/buffers/) so mesh data can be uploaded from JavaScript. The pipeline fields are listed under [GPURenderPipeline](/en/reference/gpu-render-pipeline/).

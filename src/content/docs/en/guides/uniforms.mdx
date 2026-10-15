@@ -1,0 +1,120 @@
+---
+title: Uniform Buffers
+description: Pass per-frame parameters through the uniform address space
+sidebar:
+  order: 7
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+A uniform buffer is the right place for small values that change every frame: a color, a time, or a transform. The shader can read it and cannot write it. Large arrays and computed results belong in a storage buffer, covered with [compute shaders](/en/guides/compute-shaders/).
+
+## Declaration
+
+```
+struct Uniforms {
+  color: vec4f,
+  offset: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.5),
+    vec2f(-0.5, -0.5),
+    vec2f(0.5, -0.5),
+  );
+  let position = positions[vertexIndex] + uniforms.offset;
+  return vec4f(position, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return uniforms.color;
+}
+```
+
+`var<uniform>` is read-only. The JavaScript buffer needs `GPUBufferUsage.UNIFORM`. Add `COPY_DST` when it is updated with `writeBuffer()`.
+
+## Alignment
+
+The uniform address space does not pack fields the way a compact C struct does. Scalar and vector layout:
+
+| Type | Alignment | Size |
+| --- | --- | --- |
+| `f32` | 4 | 4 |
+| `vec2f` | 8 | 8 |
+| `vec3f` | 16 | 12 |
+| `vec4f` | 16 | 16 |
+
+A structure's alignment is the maximum member alignment, rounded up to 16. Its size is then rounded up to that alignment. `Uniforms` is therefore 32 bytes, not 24:
+
+| Bytes | Contents |
+| --- | --- |
+| 0–15 | `color` (4 floats) |
+| 16–23 | `offset` (2 floats) |
+| 24–31 | Padding |
+
+```javascript
+const uniformData = new Float32Array(8); // 32 bytes
+uniformData[0] = 0.9; // r
+uniformData[1] = 0.4; // g
+uniformData[2] = 0.2; // b
+uniformData[3] = 1;   // a
+uniformData[4] = 0.2; // offset.x
+uniformData[5] = -0.1; // offset.y
+
+const uniformBuffer = device.createBuffer({
+  size: uniformData.byteLength,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+```
+
+The buffer must be at least the structure's `SizeOf`. A 24-byte allocation fails the minimum binding-size check at draw time.
+
+A struct that holds one `f32` or one `vec4f` is 16 bytes. `vec3f` is the easy one to under-count: its size is 12 and its alignment is 16, so the next member cannot start immediately after it.
+
+## Updating every frame
+
+A bind group points at the buffer. It does not snapshot the bytes. Keep the same buffer and bind group, call `writeBuffer()` every frame, and record a new command buffer:
+
+```javascript
+function frame(time) {
+  uniformData[4] = Math.sin(time) * 0.35;
+  uniformData[5] = Math.cos(time * 0.8) * 0.25;
+  device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+  const encoder = device.createCommandEncoder();
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: context.getCurrentTexture().createView(),
+        clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+        loadOp: "clear",
+        storeOp: "store",
+      },
+    ],
+  });
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(3);
+  pass.end();
+  device.queue.submit([encoder.finish()]);
+  requestAnimationFrame((now) => frame(now / 1000));
+}
+```
+
+On one queue, `writeBuffer()` is ordered before a later `submit()`. Do not write a buffer that is currently mapped, and do not reuse the previous frame's `GPUCommandEncoder`.
+
+## Demo
+
+Color and offset live in one uniform struct. The triangle moves and changes color.
+
+<WebGPULesson demo="uniform" id="guide-uniform" title="Uniform updated every frame" />
+
+## Next
+
+Image data does not belong in a uniform. The next chapter puts a checkerboard on a quad with [textures and samplers](/en/guides/textures/).

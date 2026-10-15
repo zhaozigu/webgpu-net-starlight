@@ -2,7 +2,7 @@
 title: 基础对象
 description: 按顺序创建 GPUAdapter、GPUDevice、命令编码器和队列，把绘制命令提交到 GPU。
 sidebar:
-  order: 3
+  order: 2
 ---
 
 WebGPU 相对于之前的 WebGL 会相对复杂一些，要进行 WebGPU 的开发，需要创建和配置很多的 JavaScript 对象。这些对象的的最终目标可以归结**为将命令发送到 GPU**。
@@ -197,3 +197,7 @@ context.configure({
   format: canvasFormat,
 });
 ```
+
+## 下一步
+
+画布配置好之后，着色器要用 [WGSL](/guides/wgsl/) 来写。
