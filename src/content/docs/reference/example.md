@@ -1,6 +1,6 @@
 ---
 title: WebGPU API 参考
-description: WebGPU 核心对象的索引，链到缓冲区、纹理、绑定组和管线
+description: WebGPU 核心对象的索引，链到缓冲区、纹理、绑定组和管线。
 sidebar:
   label: 概览
   order: 1

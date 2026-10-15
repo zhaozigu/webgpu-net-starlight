@@ -1,51 +1,29 @@
 ---
-title: 欢迎来到 WebGPU 学习网站
-description: 全面学习 WebGPU 现代图形编程技术
+title: 从零学会 WebGPU
+description: 用中文学习 WebGPU。教程从适配器、设备和着色器讲起，配合可运行示例与 API 参考，在浏览器里画出第一帧。
 template: splash
 hero:
-  tagline: 掌握下一代 Web 图形技术，开启高性能 GPU 编程之旅！
-  image:
-    file: ../../assets/houston.webp
+  tagline: 把适配器、着色器和渲染管线讲清楚，并用能在浏览器里运行的示例带你走完第一帧。
   actions:
-    - text: 开始学习
+    - text: 开始教程
       link: /guides/getting-started/
       icon: right-arrow
-    - text: WebGPU 官方规范
-      link: https://www.w3.org/TR/webgpu/
-      icon: external
+      variant: primary
+    - text: 浏览示例
+      link: /examples/triangle/
+      icon: rocket
+      variant: secondary
+    - text: API 参考
+      link: /reference/example/
+      icon: open-book
       variant: minimal
+head:
+  - tag: meta
+    attrs:
+      property: og:type
+      content: website
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import HomeBelow from '../../components/home/HomeBelow.astro';
 
-## 学习路径
-
-<CardGrid stagger>
-	<Card title="基础概念" icon="rocket">
-		了解 WebGPU 的核心概念、渲染管线和计算着色器基础知识。
-	</Card>
-	<Card title="实战教程" icon="laptop">
-		通过实际项目学习如何创建 3D 图形、进行并行计算和性能优化。
-	</Card>
-	<Card title="API 参考" icon="setting">
-		详细的 WebGPU API 文档，包括所有接口、方法和最佳实践。
-	</Card>
-	<Card title="示例代码" icon="open-book">
-		丰富的代码示例和完整项目，帮助你快速上手 WebGPU 开发。
-	</Card>
-</CardGrid>
-
-## 推荐顺序
-
-1. [介绍](/guides/getting-started/)
-2. [基础对象](/guides/fundamental-object/)
-3. [WGSL 基础](/guides/wgsl/)
-4. [渲染管线](/guides/render-pipeline/)
-5. [缓冲区](/guides/buffers/)
-6. [绑定组](/guides/bind-groups/)
-7. [Uniform 缓冲区](/guides/uniforms/)
-8. [纹理与采样器](/guides/textures/)
-9. [深度缓冲](/guides/depth/)
-10. [计算着色器](/guides/compute-shaders/)
-
-接口说明在 [API 参考](/reference/example/)，可以直接运行的短例子从[三角形](/examples/triangle/)开始。
+<HomeBelow />

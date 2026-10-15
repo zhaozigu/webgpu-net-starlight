@@ -1,0 +1,426 @@
+---
+import JsonLd from '../seo/JsonLd.astro';
+
+const isEn = Astro.locals.starlightRoute.lang === 'en';
+const prefix = isEn ? '/en' : '';
+
+const copy = isEn
+	? {
+			pathsTitle: 'Learning paths',
+			pathsLede:
+				'Four sections, each with a place to start. The guides below follow the same order as the sidebar.',
+			stepsTitle: 'Guide order',
+			stepsLede: 'Each chapter continues from the one before it, from the first adapter through compute shaders.',
+			note: 'You can read every tutorial in any browser. The live examples need a browser with WebGPU.',
+			examplesTitle: 'Runnable examples',
+			examples: [
+				{ href: `${prefix}/examples/triangle/`, title: 'Triangle' },
+				{ href: `${prefix}/examples/vertex-buffers/`, title: 'Vertex buffers' },
+				{ href: `${prefix}/examples/uniform-buffers/`, title: 'Uniform buffers' },
+				{ href: `${prefix}/examples/textures/`, title: 'Texture mapping' },
+			],
+			paths: [
+				{
+					href: `${prefix}/guides/getting-started/`,
+					kicker: 'Guides',
+					title: 'Follow the tutorial',
+					description:
+						'Introduction, fundamental objects, WGSL, the render pipeline, buffers, textures, depth, and compute shaders.',
+					cta: 'Start the tutorial',
+				},
+				{
+					href: `${prefix}/reference/example/`,
+					kicker: 'API reference',
+					title: 'Look up the core objects',
+					description:
+						'An index of GPUBuffer, GPUTexture, GPUSampler, bind groups, render and compute pipelines, and the command encoder.',
+					cta: 'Open the API reference',
+				},
+				{
+					href: `${prefix}/examples/triangle/`,
+					kicker: 'Examples',
+					title: 'Run the short examples',
+					description:
+						'Start with a triangle, then vertex buffers, uniform buffers, and a sampled texture.',
+					cta: 'Run the triangle',
+				},
+				{
+					href: `${prefix}/resources/resouces/`,
+					kicker: 'Further reading',
+					title: 'Spec and ecosystem',
+					description:
+						'The W3C spec, WGSL, MDN, and entry points for engines such as Babylon.js and Three.js.',
+					cta: 'Browse resources',
+				},
+			],
+			steps: [
+				{
+					href: `${prefix}/guides/getting-started/`,
+					title: 'Introduction',
+					description: 'What WebGPU can do, and whether this browser can run it.',
+				},
+				{
+					href: `${prefix}/guides/fundamental-object/`,
+					title: 'Fundamental objects',
+					description: 'Adapter, device, command encoder, and queue.',
+				},
+				{
+					href: `${prefix}/guides/wgsl/`,
+					title: 'WGSL basics',
+					description: 'Types, entry points, and data passed between stages.',
+				},
+				{
+					href: `${prefix}/guides/render-pipeline/`,
+					title: 'Render pipeline',
+					description: 'Shader modules, pipelines, and render passes.',
+				},
+				{
+					href: `${prefix}/guides/buffers/`,
+					title: 'Buffers',
+					description: 'Upload vertices and indices with GPUBuffer.',
+				},
+				{
+					href: `${prefix}/guides/bind-groups/`,
+					title: 'Bind groups',
+					description: 'Hand buffers, textures, and samplers to a shader.',
+				},
+				{
+					href: `${prefix}/guides/uniforms/`,
+					title: 'Uniform buffers',
+					description: 'Pass values that change every frame.',
+				},
+				{
+					href: `${prefix}/guides/textures/`,
+					title: 'Textures and samplers',
+					description: 'Upload pixels and sample them in the fragment shader.',
+				},
+				{
+					href: `${prefix}/guides/depth/`,
+					title: 'Depth buffer',
+					description: 'Resolve occlusion with a depth test.',
+				},
+				{
+					href: `${prefix}/guides/compute-shaders/`,
+					title: 'Compute shaders',
+					description: 'Write a storage texture and read a buffer back.',
+				},
+			],
+		}
+	: {
+			pathsTitle: '学习路径',
+			pathsLede: '站点分成四块。下面的教程顺序和侧边栏一致，可以从任意一章进入。',
+			stepsTitle: '教程顺序',
+			stepsLede: '每一章都接在上一章后面，从第一个适配器写到计算着色器。',
+			note: '教程在任何浏览器里都能阅读。页面里的实时示例需要支持 WebGPU 的浏览器。',
+			examplesTitle: '可运行的例子',
+			examples: [
+				{ href: `${prefix}/examples/triangle/`, title: '三角形' },
+				{ href: `${prefix}/examples/vertex-buffers/`, title: '顶点缓冲区' },
+				{ href: `${prefix}/examples/uniform-buffers/`, title: 'Uniform 缓冲区' },
+				{ href: `${prefix}/examples/textures/`, title: '纹理映射' },
+			],
+			paths: [
+				{
+					href: `${prefix}/guides/getting-started/`,
+					kicker: '教程',
+					title: '按顺序学习',
+					description: '介绍、基础对象、WGSL、渲染管线、缓冲、纹理、深度，一直到计算着色器。',
+					cta: '开始教程',
+				},
+				{
+					href: `${prefix}/reference/example/`,
+					kicker: 'API 参考',
+					title: '查阅核心对象',
+					description: '概览之后是 GPUBuffer、GPUTexture、GPUSampler、绑定组、渲染管线、计算管线和命令编码器。',
+					cta: '打开 API 参考',
+				},
+				{
+					href: `${prefix}/examples/triangle/`,
+					kicker: '实例',
+					title: '运行短例子',
+					description: '从三角形开始，接着是顶点缓冲区、uniform 缓冲区和纹理采样。',
+					cta: '运行三角形',
+				},
+				{
+					href: `${prefix}/resources/resouces/`,
+					kicker: '延伸',
+					title: '规范与生态',
+					description: 'W3C 规范、WGSL、MDN，以及 Babylon.js、Three.js 等引擎的入口。',
+					cta: '查看资源',
+				},
+			],
+			steps: [
+				{
+					href: `${prefix}/guides/getting-started/`,
+					title: '介绍',
+					description: 'WebGPU 能做什么，以及当前浏览器能不能跑。',
+				},
+				{
+					href: `${prefix}/guides/fundamental-object/`,
+					title: '基础对象',
+					description: '适配器、设备、命令编码器和队列。',
+				},
+				{
+					href: `${prefix}/guides/wgsl/`,
+					title: 'WGSL 基础',
+					description: '类型、入口函数，以及阶段之间怎么传数据。',
+				},
+				{
+					href: `${prefix}/guides/render-pipeline/`,
+					title: '渲染管线',
+					description: '着色器模块、管线和渲染通道。',
+				},
+				{
+					href: `${prefix}/guides/buffers/`,
+					title: '缓冲区',
+					description: '用 GPUBuffer 上传顶点和索引。',
+				},
+				{
+					href: `${prefix}/guides/bind-groups/`,
+					title: '绑定组',
+					description: '把缓冲、纹理和采样器交给着色器。',
+				},
+				{
+					href: `${prefix}/guides/uniforms/`,
+					title: 'Uniform 缓冲区',
+					description: '传递每帧都会变的参数。',
+				},
+				{
+					href: `${prefix}/guides/textures/`,
+					title: '纹理与采样器',
+					description: '上传像素，并在片元着色器里采样。',
+				},
+				{
+					href: `${prefix}/guides/depth/`,
+					title: '深度缓冲',
+					description: '用深度测试处理遮挡。',
+				},
+				{
+					href: `${prefix}/guides/compute-shaders/`,
+					title: '计算着色器',
+					description: '写入存储纹理，并把缓冲读回 CPU。',
+				},
+			],
+		};
+---
+
+<div class="home-sections not-content">
+	<section class="home-section" aria-labelledby="home-paths-title">
+		<h2 id="home-paths-title">{copy.pathsTitle}</h2>
+		<p class="lede">{copy.pathsLede}</p>
+		<div class="path-grid">
+			{
+				copy.paths.map((path) => (
+					<a class="path-card" href={path.href}>
+						<span class="kicker">{path.kicker}</span>
+						<span class="path-title">{path.title}</span>
+						<span class="path-desc">{path.description}</span>
+						<span class="path-cta">
+							{path.cta}
+							<span aria-hidden="true">→</span>
+						</span>
+					</a>
+				))
+			}
+		</div>
+	</section>
+
+	<section class="home-section" aria-labelledby="home-steps-title">
+		<h2 id="home-steps-title">{copy.stepsTitle}</h2>
+		<p class="lede">{copy.stepsLede}</p>
+		<ol class="steps">
+			{
+				copy.steps.map((step, index) => (
+					<li>
+						<a href={step.href}>
+							<span class="step-index" aria-hidden="true">
+								{index + 1}
+							</span>
+							<span class="step-title">{step.title}</span>
+							<span class="step-desc">{step.description}</span>
+						</a>
+					</li>
+				))
+			}
+		</ol>
+		<p class="note">{copy.note}</p>
+		<h3 class="examples-title">{copy.examplesTitle}</h3>
+		<ul class="example-links">
+			{
+				copy.examples.map((example) => (
+					<li>
+						<a href={example.href}>{example.title}</a>
+					</li>
+				))
+			}
+		</ul>
+	</section>
+</div>
+
+<JsonLd />
+
+<style>
+	.home-sections {
+		display: flex;
+		flex-direction: column;
+		gap: 2.75rem;
+		margin-top: 0.5rem;
+	}
+
+	.home-section h2 {
+		margin: 0 0 0.45rem;
+		font-size: clamp(1.45rem, calc(1.1rem + 1vw), 1.85rem);
+		line-height: 1.25;
+		color: var(--sl-color-white);
+	}
+
+	.lede,
+	.note {
+		margin: 0;
+		max-width: 62ch;
+		color: var(--sl-color-gray-2);
+		line-height: 1.65;
+	}
+
+	.lede {
+		margin-bottom: 1.15rem;
+	}
+
+	.path-grid,
+	.steps {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.path-card,
+	.steps a {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		height: 100%;
+		padding: 1.05rem 1.1rem 1rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.9rem;
+		background: var(--sl-color-bg-nav);
+		color: inherit;
+		text-decoration: none;
+		outline-offset: 3px;
+	}
+
+	.path-card:hover,
+	.steps a:hover {
+		border-color: var(--sl-color-text-accent);
+	}
+
+	.path-card:focus-visible,
+	.steps a:focus-visible {
+		outline: 2px solid var(--sl-color-text-accent);
+	}
+
+	.kicker {
+		color: var(--sl-color-text-accent);
+		font-size: var(--sl-text-xs);
+		font-weight: 700;
+		letter-spacing: 0.04em;
+	}
+
+	.path-title,
+	.step-title {
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-lg);
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.path-desc,
+	.step-desc {
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+		line-height: 1.6;
+	}
+
+	.path-desc {
+		flex: 1;
+	}
+
+	.path-cta {
+		margin-top: 0.45rem;
+		color: var(--sl-color-text-accent);
+		font-size: var(--sl-text-sm);
+		font-weight: 600;
+	}
+
+	.steps {
+		list-style: none;
+		margin: 0 0 0.9rem;
+		padding: 0;
+	}
+
+	.step-index {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.7rem;
+		height: 1.7rem;
+		border-radius: 999rem;
+		background: var(--sl-color-text-accent);
+		color: var(--sl-color-black);
+		font-size: var(--sl-text-xs);
+		font-weight: 700;
+	}
+
+	.note {
+		font-size: var(--sl-text-sm);
+	}
+
+	.examples-title {
+		margin: 1.25rem 0 0.65rem;
+		color: var(--sl-color-white);
+		font-size: var(--sl-text-lg);
+		line-height: 1.3;
+	}
+
+	.example-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.example-links a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 2.75rem;
+		padding: 0.4rem 0.9rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 999rem;
+		background: var(--sl-color-bg-nav);
+		color: var(--sl-color-white);
+		font-weight: 600;
+		text-decoration: none;
+		outline-offset: 3px;
+	}
+
+	.example-links a:hover {
+		border-color: var(--sl-color-text-accent);
+		color: var(--sl-color-text-accent);
+	}
+
+	.example-links a:focus-visible {
+		outline: 2px solid var(--sl-color-text-accent);
+	}
+
+	@media (min-width: 42rem) {
+		.path-grid {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+	@media (min-width: 50rem) {
+		.steps {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+</style>

@@ -1,51 +1,29 @@
 ---
-title: Welcome to WebGPU Learning Website
-description: Comprehensive learning of modern WebGPU graphics programming technology
+title: Learn WebGPU from scratch
+description: Tutorials, runnable examples, and an API reference for WebGPU. Start with adapters and devices, then draw your first frame in the browser.
 template: splash
 hero:
-  tagline: Master next-generation web graphics technology and embark on your high-performance GPU programming journey!
-  image:
-    file: ../../../assets/houston.webp
+  tagline: Clear lessons on adapters, shaders, and the render pipeline, with examples you can run in the browser.
   actions:
-    - text: Start Learning
+    - text: Start the tutorial
       link: /en/guides/getting-started/
       icon: right-arrow
-    - text: WebGPU Official Specification
-      link: https://www.w3.org/TR/webgpu/
-      icon: external
+      variant: primary
+    - text: Browse examples
+      link: /en/examples/triangle/
+      icon: rocket
+      variant: secondary
+    - text: API reference
+      link: /en/reference/example/
+      icon: open-book
       variant: minimal
+head:
+  - tag: meta
+    attrs:
+      property: og:type
+      content: website
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import HomeBelow from '../../../components/home/HomeBelow.astro';
 
-## Learning Path
-
-<CardGrid stagger>
-	<Card title="Fundamental Concepts" icon="rocket">
-		Learn WebGPU core concepts, rendering pipelines, and compute shader fundamentals.
-	</Card>
-	<Card title="Practical Tutorials" icon="laptop">
-		Learn how to create 3D graphics, perform parallel computing, and optimize performance through real projects.
-	</Card>
-	<Card title="API Reference" icon="setting">
-		Detailed WebGPU API documentation including all interfaces, methods, and best practices.
-	</Card>
-	<Card title="Code Examples" icon="open-book">
-		Rich code examples and complete projects to help you quickly get started with WebGPU development.
-	</Card>
-</CardGrid>
-
-## Suggested order
-
-1. [Introduction](/en/guides/getting-started/)
-2. [Fundamental objects](/en/guides/fundamental-object/)
-3. [WGSL basics](/en/guides/wgsl/)
-4. [Render pipeline](/en/guides/render-pipeline/)
-5. [Buffers](/en/guides/buffers/)
-6. [Bind groups](/en/guides/bind-groups/)
-7. [Uniform buffers](/en/guides/uniforms/)
-8. [Textures and samplers](/en/guides/textures/)
-9. [Depth buffer](/en/guides/depth/)
-10. [Compute shaders](/en/guides/compute-shaders/)
-
-Interface notes start at the [API reference](/en/reference/example/). Short runnable pages start at the [triangle](/en/examples/triangle/).
+<HomeBelow />
