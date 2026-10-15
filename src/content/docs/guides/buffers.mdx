@@ -1,0 +1,132 @@
+---
+title: 缓冲区
+description: 用 GPUBuffer 上传顶点数据和索引数据
+sidebar:
+  order: 5
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+前面的三角形把坐标写死在 WGSL 数组里。模型、粒子和界面顶点都应该放在 `GPUBuffer` 里，绘制时用 `setVertexBuffer()` 绑到管线上。
+
+## 创建顶点缓冲
+
+`createBuffer()` 的 `size` 以字节为单位，并且必须是 4 的倍数。`usage` 决定这块内存以后能做什么。顶点缓冲至少要有 `GPUBufferUsage.VERTEX`；如果用 `queue.writeBuffer()` 上传，还要带上 `COPY_DST`。
+
+```javascript
+// x, y, r, g, b
+const vertices = new Float32Array([
+  0.0, 0.5, 1.0, 0.25, 0.2,
+  -0.5, -0.5, 0.2, 0.85, 0.35,
+  0.5, -0.5, 0.25, 0.45, 1.0,
+]);
+
+const vertexBuffer = device.createBuffer({
+  label: "彩色三角形顶点",
+  size: vertices.byteLength,
+  usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(vertexBuffer, 0, vertices);
+```
+
+`writeBuffer()` 的目标偏移量也必须是 4 的倍数。它把 `ArrayBuffer` 或 TypedArray 的内容复制进队列，调用返回后就可以改原来的数组。
+
+也可以在创建时映射，直接写入，然后 `unmap()`。这种缓冲不必带 `COPY_DST`，但在解除映射之前不能提交给 GPU：
+
+```javascript
+const vertexBuffer = device.createBuffer({
+  size: vertices.byteLength,
+  usage: GPUBufferUsage.VERTEX,
+  mappedAtCreation: true,
+});
+new Float32Array(vertexBuffer.getMappedRange()).set(vertices);
+vertexBuffer.unmap();
+```
+
+## 顶点布局
+
+管线的 `vertex.buffers` 描述缓冲里的一个顶点有多宽、每个字段放在哪个 `@location`。
+
+```javascript
+buffers: [
+  {
+    arrayStride: 5 * 4,
+    attributes: [
+      { shaderLocation: 0, offset: 0, format: "float32x2" },
+      { shaderLocation: 1, offset: 8, format: "float32x3" },
+    ],
+  },
+],
+```
+
+- `arrayStride` 是相邻两个顶点的字节距离，必须是 4 的倍数。这里 5 个 `f32`，共 20 字节。
+- `offset` 是这个字段在顶点内的起点。`float32x2` 占 8 字节，所以颜色从第 8 字节开始。
+- `format` 必须和 WGSL 参数类型对应：`float32x2` 对 `vec2f`，`float32x3` 对 `vec3f`。
+- `shaderLocation` 对上着色器参数的 `@location`，不是绑定组的 `@binding`。
+
+```
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(
+  @location(0) position: vec2f,
+  @location(1) color: vec3f,
+) -> VertexOut {
+  var out: VertexOut;
+  out.position = vec4f(position, 0.0, 1.0);
+  out.color = color;
+  return out;
+}
+
+@fragment
+fn fs_main(@location(0) color: vec3f) -> @location(0) vec4f {
+  return vec4f(color, 1.0);
+}
+```
+
+绘制时槽位 0 对上 `buffers[0]`：
+
+```javascript
+pass.setPipeline(pipeline);
+pass.setVertexBuffer(0, vertexBuffer);
+pass.draw(3);
+```
+
+## 索引缓冲
+
+一个矩形有 4 个顶点、2 个三角形。索引缓冲只保存顶点编号，避免把共用顶点再存一遍。索引类型是 `"uint16"` 或 `"uint32"`。
+
+```javascript
+const vertices = new Float32Array([
+  -0.5, -0.5,
+  0.5, -0.5,
+  0.5, 0.5,
+  -0.5, 0.5,
+]);
+const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
+
+const indexBuffer = device.createBuffer({
+  size: indices.byteLength, // 12，已经是 4 的倍数
+  usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(indexBuffer, 0, indices);
+
+pass.setVertexBuffer(0, vertexBuffer);
+pass.setIndexBuffer(indexBuffer, "uint16");
+pass.drawIndexed(indices.length);
+```
+
+`drawIndexed(6)` 读取 6 个索引。`"triangle-list"` 下这是两个三角形。条带拓扑（`triangle-strip` / `line-strip`）如果用索引缓冲，还要在 `primitive.stripIndexFormat` 里声明同一种索引格式。
+
+## 演示
+
+三个顶点来自缓冲，颜色也来自缓冲。插值效果和 WGSL 那一章相同，数据路径已经换成 `GPUBuffer`。
+
+<WebGPULesson demo="vertex-buffer" id="guide-vertex-buffer" title="从顶点缓冲绘制" />
+
+## 下一步
+
+缓冲创建好之后，还要放进[绑定组](/guides/bind-groups/)，着色器才能读到 uniform 和存储数据。接口细节见 [GPUBuffer](/reference/gpu-buffer/)。

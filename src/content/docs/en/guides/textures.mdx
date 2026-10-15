@@ -1,0 +1,118 @@
+---
+title: Textures and Samplers
+description: Create a GPUTexture, upload pixels with writeTexture, and sample them
+sidebar:
+  order: 8
+---
+
+import WebGPULesson from '@/components/WebGPULesson.astro';
+
+A texture stores pixels. A sampler decides how those pixels are filtered and what happens when the coordinate leaves the 0 to 1 range. They are separate objects: one texture can be paired with a nearest sampler or a linear sampler.
+
+## Creating a texture
+
+The demo uses a 64×64 `"rgba8unorm"` texture. Each texel is 4 bytes. The format can be sampled and can be the target of `writeTexture()`.
+
+```javascript
+const texture = device.createTexture({
+  label: "Checkerboard",
+  size: [64, 64],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+});
+```
+
+`size` may also be `{ width: 64, height: 64 }`. `dimension` defaults to `"2d"`. `mipLevelCount` and `sampleCount` default to 1.
+
+## Uploading pixels
+
+`bytesPerRow` must be a multiple of 256. Sixty-four pixels times 4 bytes is exactly 256, so the row needs no extra padding. A copy taller than one texel block must set `bytesPerRow`.
+
+```javascript
+const size = 64;
+const bytesPerRow = 256;
+const pixels = new Uint8Array(bytesPerRow * size);
+
+for (let y = 0; y < size; y++) {
+  for (let x = 0; x < size; x++) {
+    const checker = ((x >> 3) ^ (y >> 3)) & 1;
+    const offset = y * bytesPerRow + x * 4;
+    pixels[offset] = checker ? 232 : 28;
+    pixels[offset + 1] = checker ? 164 : 78;
+    pixels[offset + 2] = checker ? 64 : 130;
+    pixels[offset + 3] = 255;
+  }
+}
+
+device.queue.writeTexture(
+  { texture },
+  pixels,
+  { bytesPerRow },
+  { width: size, height: size },
+);
+```
+
+`copyExternalImageToTexture()` copies from an `ImageBitmap` or another canvas. That destination must include both `COPY_DST` and `RENDER_ATTACHMENT` in `usage`, and the format must be a plain color format that can be a render attachment and is an unorm or float format.
+
+## Sampler
+
+```javascript
+const sampler = device.createSampler({
+  magFilter: "nearest",
+  minFilter: "nearest",
+  addressModeU: "clamp-to-edge",
+  addressModeV: "clamp-to-edge",
+});
+```
+
+`magFilter` and `minFilter` are `"nearest"` or `"linear"`. `"nearest"` keeps the checkerboard edges sharp when the quad is larger than the texture. `addressModeU` and `addressModeV` are `"clamp-to-edge"`, `"repeat"`, or `"mirror-repeat"`. The default is `"clamp-to-edge"`.
+
+Sample in the fragment shader with `textureSample()`. The call has to be in uniform control flow, so do not hide it in a branch that depends on the fragment coordinate.
+
+```
+@group(0) @binding(0) var gradientTex: texture_2d<f32>;
+@group(0) @binding(1) var gradientSampler: sampler;
+
+@fragment
+fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+  return textureSample(gradientTex, gradientSampler, uv);
+}
+```
+
+Do not name the variable `sampler`; that identifier is the type. `textureSample()` causes an automatic layout to treat the sampler as `"filtering"`. A `"non-filtering"` sampler is for `textureLoad()`.
+
+Texture coordinate (0, 0) is the first texel written by `writeTexture()`. These UVs put that first row at the top of the quad:
+
+```javascript
+const vertices = new Float32Array([
+  // x, y, u, v
+  -0.7, -0.7, 0, 1,
+  0.7, -0.7, 1, 1,
+  0.7, 0.7, 1, 0,
+  -0.7, -0.7, 0, 1,
+  0.7, 0.7, 1, 0,
+  -0.7, 0.7, 0, 0,
+]);
+```
+
+The bind group holds the view and the sampler. Passing a `GPUTexture` is also valid: the specification treats it as the default view. This sample calls `createView()` explicitly.
+
+```javascript
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: texture.createView() },
+    { binding: 1, resource: sampler },
+  ],
+});
+```
+
+## Demo
+
+Each checker cell is 8×8 pixels. The quad is two triangles.
+
+<WebGPULesson demo="texture" id="guide-texture" title="Checkerboard with nearest sampling" />
+
+## Next
+
+Overlapping triangles still have no notion of which one is in front. The next chapter adds a [depth buffer](/en/guides/depth/). Field lists are on [GPUTexture](/en/reference/gpu-texture/) and [GPUSampler](/en/reference/gpu-sampler/).

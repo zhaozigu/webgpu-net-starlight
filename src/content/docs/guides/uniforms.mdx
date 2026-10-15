@@ -1,0 +1,120 @@
+---
+title: Uniform 缓冲区
+description: 用 uniform 地址空间向着色器传递每帧变化的参数
+sidebar:
+  order: 7
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+Uniform 缓冲适合放每帧都变、但体积不大的参数：颜色、时间、变换矩阵。着色器只能读它，不能写。大数组和计算结果应该用存储缓冲，见[计算着色器](/guides/compute-shaders/)。
+
+## 声明
+
+```
+struct Uniforms {
+  color: vec4f,
+  offset: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4f {
+  var positions = array<vec2f, 3>(
+    vec2f(0.0, 0.5),
+    vec2f(-0.5, -0.5),
+    vec2f(0.5, -0.5),
+  );
+  let position = positions[vertexIndex] + uniforms.offset;
+  return vec4f(position, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main() -> @location(0) vec4f {
+  return uniforms.color;
+}
+```
+
+`var<uniform>` 是只读的。JavaScript 侧的缓冲必须带 `GPUBufferUsage.UNIFORM`。用 `writeBuffer()` 更新时再加上 `COPY_DST`。
+
+## 对齐
+
+WGSL 的 uniform 地址空间不是按紧凑的 C 结构体来排的。标量和向量的对齐是：
+
+| 类型 | 对齐 | 大小 |
+| --- | --- | --- |
+| `f32` | 4 | 4 |
+| `vec2f` | 8 | 8 |
+| `vec3f` | 16 | 12 |
+| `vec4f` | 16 | 16 |
+
+结构体的对齐取成员对齐的最大值，再向上取整到 16。结构体的大小再向上取整到这个对齐。上面的 `Uniforms` 因此是 32 字节，不是 24：
+
+| 字节 | 内容 |
+| --- | --- |
+| 0–15 | `color`（4 个 f32） |
+| 16–23 | `offset`（2 个 f32） |
+| 24–31 | 补齐 |
+
+```javascript
+const uniformData = new Float32Array(8); // 32 字节
+uniformData[0] = 0.9; // r
+uniformData[1] = 0.4; // g
+uniformData[2] = 0.2; // b
+uniformData[3] = 1;   // a
+uniformData[4] = 0.2; // offset.x
+uniformData[5] = -0.1; // offset.y
+
+const uniformBuffer = device.createBuffer({
+  size: uniformData.byteLength,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+```
+
+缓冲至少要有结构体 `SizeOf` 这么大。只分配 24 字节时，绘制阶段的最小绑定大小检查会失败。
+
+只有一个 `f32` 或一个 `vec4f` 时，结构体大小是 16 字节。`vec3f` 容易少算：它的大小是 12，对齐却是 16，后面的成员不能紧贴着放。
+
+## 每帧更新
+
+绑定组指向缓冲，不复制当时的内容。动画里保留同一块缓冲和同一个绑定组，每帧 `writeBuffer()`，再录制新的命令缓冲：
+
+```javascript
+function frame(time) {
+  uniformData[4] = Math.sin(time) * 0.35;
+  uniformData[5] = Math.cos(time * 0.8) * 0.25;
+  device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+  const encoder = device.createCommandEncoder();
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [
+      {
+        view: context.getCurrentTexture().createView(),
+        clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+        loadOp: "clear",
+        storeOp: "store",
+      },
+    ],
+  });
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(3);
+  pass.end();
+  device.queue.submit([encoder.finish()]);
+  requestAnimationFrame((now) => frame(now / 1000));
+}
+```
+
+`writeBuffer()` 在同一条队列上先于后面的 `submit()` 生效。不要在映射状态下写入，也不要复用上一帧的 `GPUCommandEncoder`。
+
+## 演示
+
+颜色和位移都放在同一个 uniform 结构体里，三角形会移动并变色。
+
+<WebGPULesson demo="uniform" id="guide-uniform" title="每帧写入 uniform" />
+
+## 下一步
+
+图像数据不适合塞进 uniform。下一章用[纹理与采样器](/guides/textures/)把一张棋盘格贴到四边形上。

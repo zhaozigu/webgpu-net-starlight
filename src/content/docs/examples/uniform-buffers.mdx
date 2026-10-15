@@ -1,0 +1,57 @@
+---
+title: Uniform 缓冲区
+description: 每帧把颜色和位移写入 uniform 缓冲
+sidebar:
+  order: 3
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+三角形的颜色和位移来自一块 32 字节的 uniform 缓冲。`vec4f` 颜色占前 16 字节，`vec2f` 位移从第 16 字节开始，结构体按 uniform 规则补齐到 32 字节。讲解见 [Uniform 缓冲区](/guides/uniforms/)。
+
+## 实时演示
+
+<WebGPULesson demo="uniform" id="example-uniform" title="移动中的三角形" width={640} height={360} />
+
+## 核心代码
+
+```javascript
+const uniformData = new Float32Array(8);
+const uniformBuffer = device.createBuffer({
+  size: uniformData.byteLength,
+  usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+});
+
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+});
+
+function frame(time) {
+  uniformData[0] = 0.45 + 0.55 * Math.sin(time * 1.3);
+  uniformData[1] = 0.35 + 0.45 * Math.sin(time * 1.7 + 2);
+  uniformData[2] = 0.4 + 0.5 * Math.sin(time * 1.1 + 4);
+  uniformData[3] = 1;
+  uniformData[4] = Math.sin(time) * 0.35;
+  uniformData[5] = Math.cos(time * 0.8) * 0.25;
+  device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, bindGroup);
+  pass.draw(3);
+}
+```
+
+```
+struct Uniforms {
+  color: vec4f,
+  offset: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+```
+
+## 下一步
+
+- [纹理示例](/examples/textures/)
+- [绑定组](/guides/bind-groups/)

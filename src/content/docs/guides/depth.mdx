@@ -1,0 +1,116 @@
+---
+title: 深度缓冲
+description: 用 depth24plus 和 depthCompare 解决三角形的遮挡
+sidebar:
+  order: 9
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+只靠绘制顺序时，后画的三角形会盖住先画的，不管它在场景里是远是近。深度缓冲为每个像素再存一个深度，测试失败的片元就不再写入颜色。
+
+## 坐标
+
+顶点着色器写到 `@builtin(position)` 的是裁剪坐标。`w` 为 1 时，NDC 的 z 就是你写的 z。WebGPU 里 0 是近平面，1 是远平面，和旧的 OpenGL 裁剪空间不同。
+
+演示里蓝色三角形的 z 是 0.3，红色是 0.6。蓝色更近。绘制顺序却是先蓝后红，所以如果没有深度测试，红色会盖住重叠部分。
+
+## 深度纹理
+
+`"depth24plus"` 是核心深度格式，实现可以把它做成 24 位或 32 位浮点深度。它能作为渲染附件，不能用 `copyBufferToTexture()` 去读写深度值。
+
+```javascript
+const depthTexture = device.createTexture({
+  size: [canvas.width, canvas.height],
+  format: "depth24plus",
+  usage: GPUTextureUsage.RENDER_ATTACHMENT,
+});
+```
+
+尺寸必须和颜色附件一致，也就是画布绘图缓冲区的 `canvas.width` 和 `canvas.height`，不是 CSS 像素。
+
+## 管线和通道
+
+管线声明深度格式和比较函数。附件在渲染通道里清成 1，这样任何更近的片元（z 更小）都能通过 `"less"` 测试。
+
+```javascript
+const pipeline = device.createRenderPipeline({
+  layout: "auto",
+  vertex: {
+    module,
+    entryPoint: "vs_main",
+    buffers: [
+      {
+        arrayStride: 6 * 4,
+        attributes: [
+          { shaderLocation: 0, offset: 0, format: "float32x3" },
+          { shaderLocation: 1, offset: 12, format: "float32x3" },
+        ],
+      },
+    ],
+  },
+  fragment: {
+    module,
+    entryPoint: "fs_main",
+    targets: [{ format: canvasFormat }],
+  },
+  primitive: { topology: "triangle-list" },
+  depthStencil: {
+    format: "depth24plus",
+    depthWriteEnabled: true,
+    depthCompare: "less",
+  },
+});
+```
+
+```javascript
+const pass = encoder.beginRenderPass({
+  colorAttachments: [
+    {
+      view: context.getCurrentTexture().createView(),
+      clearValue: { r: 0.3, g: 0.3, b: 0.3, a: 1 },
+      loadOp: "clear",
+      storeOp: "store",
+    },
+  ],
+  depthStencilAttachment: {
+    view: depthTexture.createView(),
+    depthClearValue: 1,
+    depthLoadOp: "clear",
+    depthStoreOp: "discard",
+  },
+});
+```
+
+`depthStoreOp: "discard"` 表示通道结束后不保留深度纹理的内容。这一帧不再读取深度时可以用它。下一帧如果还要沿用深度，改成 `"store"`，并把 `depthLoadOp` 改成 `"load"`。
+
+`depthCompare` 还可以是 `"less-equal"`、`"greater"`、`"always"` 等。透明物体有时关闭 `depthWriteEnabled`，只做测试；不透明物体通常两者都打开。
+
+顶点着色器把缓冲里的 `vec3f` 直接写成裁剪坐标：
+
+```
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) color: vec3f,
+}
+
+@vertex
+fn vs_main(@location(0) position: vec3f, @location(1) color: vec3f) -> VertexOut {
+  var out: VertexOut;
+  out.position = vec4f(position, 1.0);
+  out.color = color;
+  return out;
+}
+```
+
+## 演示
+
+两张图使用同一批顶点：先画较近的蓝色三角形，再画较远的红色三角形。左边打开深度测试，重叠处仍是蓝色。右边不使用深度附件，后画的红色盖住蓝色。
+
+<WebGPULesson demo="depth" id="guide-depth-on" title="depthCompare 为 less" depth={true} />
+
+<WebGPULesson demo="depth" id="guide-depth-off" title="没有深度附件" depth={false} />
+
+## 下一步
+
+图形通道之外，GPU 还可以跑没有光栅化的[计算着色器](/guides/compute-shaders/)。

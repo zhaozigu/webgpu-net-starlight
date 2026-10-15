@@ -1,0 +1,63 @@
+---
+title: 纹理映射
+description: 把程序生成的棋盘格写进纹理并采样到四边形上
+sidebar:
+  order: 4
+---
+
+import WebGPULesson from '../../../components/WebGPULesson.astro';
+
+64×64 的 `"rgba8unorm"` 棋盘格用 `writeTexture()` 上传。每行 256 字节，刚好满足 `bytesPerRow` 必须是 256 的倍数。采样器使用 `"nearest"`，格子放大后仍然清楚。讲解见[纹理与采样器](/guides/textures/)。
+
+## 实时演示
+
+<WebGPULesson demo="texture" id="example-texture" title="棋盘格" width={640} height={360} />
+
+## 核心代码
+
+```javascript
+const size = 64;
+const bytesPerRow = 256;
+const pixels = new Uint8Array(bytesPerRow * size);
+// 按 8×8 像素填两种颜色，偏移是 y * bytesPerRow + x * 4
+
+const texture = device.createTexture({
+  size: [size, size],
+  format: "rgba8unorm",
+  usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+});
+device.queue.writeTexture(
+  { texture },
+  pixels,
+  { bytesPerRow },
+  { width: size, height: size },
+);
+
+const sampler = device.createSampler({
+  magFilter: "nearest",
+  minFilter: "nearest",
+});
+
+const bindGroup = device.createBindGroup({
+  layout: pipeline.getBindGroupLayout(0),
+  entries: [
+    { binding: 0, resource: texture.createView() },
+    { binding: 1, resource: sampler },
+  ],
+});
+```
+
+```
+@group(0) @binding(0) var gradientTex: texture_2d<f32>;
+@group(0) @binding(1) var gradientSampler: sampler;
+
+@fragment
+fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
+  return textureSample(gradientTex, gradientSampler, uv);
+}
+```
+
+## 下一步
+
+- [深度缓冲](/guides/depth/)
+- [计算着色器](/guides/compute-shaders/)

@@ -1,82 +1,68 @@
 ---
 title: WebGPU API 参考
-description: WebGPU 核心 API 接口和方法参考文档
+description: WebGPU 核心对象的索引，链到缓冲区、纹理、绑定组和管线
+sidebar:
+  label: 概览
+  order: 1
 ---
 
-WebGPU API 提供了访问现代 GPU 功能的完整接口集。以下是主要的 API 组件和接口。
+这一节按对象整理 WebGPU 的常用接口。每个对象页只写规范里真实存在的成员，并链到对应教程。完整定义以 [WebGPU 规范](https://www.w3.org/TR/webgpu/) 为准。
 
-## 核心接口
-
-### Navigator.gpu
-
-全局 GPU 接口，用于请求 WebGPU 适配器。
+## 从适配器到队列
 
 ```typescript
 interface GPU {
   requestAdapter(options?: GPURequestAdapterOptions): Promise<GPUAdapter | null>;
   getPreferredCanvasFormat(): GPUTextureFormat;
 }
-```
 
-### GPUAdapter
-
-表示 GPU 适配器，提供设备请求和能力查询功能。
-
-```typescript
 interface GPUAdapter {
   readonly features: GPUSupportedFeatures;
   readonly limits: GPUSupportedLimits;
   readonly info: GPUAdapterInfo;
-  
   requestDevice(descriptor?: GPUDeviceDescriptor): Promise<GPUDevice>;
 }
 ```
 
-### GPUDevice
+`GPUDevice` 是创建资源的入口。常用方法：
 
-WebGPU 的核心接口，用于创建所有 GPU 资源。
+| 方法 | 创建的对象 |
+| --- | --- |
+| `createBuffer` | [GPUBuffer](/reference/gpu-buffer/) |
+| `createTexture` | [GPUTexture](/reference/gpu-texture/) |
+| `createSampler` | [GPUSampler](/reference/gpu-sampler/) |
+| `createBindGroupLayout` / `createBindGroup` | [GPUBindGroup](/reference/gpu-bind-group/) |
+| `createPipelineLayout` | 把若干绑定组布局合成管线布局 |
+| `createShaderModule` | 编译 WGSL |
+| `createRenderPipeline` | [GPURenderPipeline](/reference/gpu-render-pipeline/) |
+| `createComputePipeline` | [GPUComputePipeline](/reference/gpu-compute-pipeline/) |
+| `createCommandEncoder` | [GPUCommandEncoder](/reference/gpu-command-encoder/) |
+| `pushErrorScope` / `popErrorScope` | 捕获校验错误 |
+| `destroy` | 销毁设备和它创建的资源 |
 
-```typescript
-interface GPUDevice {
-  readonly features: GPUSupportedFeatures;
-  readonly limits: GPUSupportedLimits;
-  readonly queue: GPUQueue;
-  
-  createBuffer(descriptor: GPUBufferDescriptor): GPUBuffer;
-  createTexture(descriptor: GPUTextureDescriptor): GPUTexture;
-  createSampler(descriptor?: GPUSamplerDescriptor): GPUSampler;
-  createShaderModule(descriptor: GPUShaderModuleDescriptor): GPUShaderModule;
-  createRenderPipeline(descriptor: GPURenderPipelineDescriptor): GPURenderPipeline;
-  createComputePipeline(descriptor: GPUComputePipelineDescriptor): GPUComputePipeline;
-}
-```
+设备上还有只读的 `features`、`limits` 和 `queue`。`lost` 是一个会在设备丢失时兑现的 Promise。异步校验错误如果没有被 error scope 捕获，会以 `uncapturederror` 事件发出。
 
-## 渲染相关
+`getPreferredCanvasFormat()` 只返回 `"rgba8unorm"` 或 `"bgra8unorm"`。画布颜色附件和片元目标的 `format` 要用这个值。
 
-### GPURenderPipeline
+## 资源怎么进着色器
 
-渲染管线对象，定义图形渲染的完整流程。
+- 顶点数据和索引数据是缓冲，绘制时用 `setVertexBuffer()` / `setIndexBuffer()`。
+- Uniform、存储缓冲、纹理和采样器放进绑定组，用 `setBindGroup()`。
+- 命令先录进 `GPUCommandEncoder`，`finish()` 得到 `GPUCommandBuffer`，再由 `GPUQueue.submit()` 执行。
 
-### GPUTexture
+教程顺序：
 
-纹理资源，用于存储图像数据。
+1. [WGSL 基础](/guides/wgsl/)
+2. [渲染管线](/guides/render-pipeline/)
+3. [缓冲区](/guides/buffers/)
+4. [绑定组](/guides/bind-groups/)
+5. [Uniform 缓冲区](/guides/uniforms/)
+6. [纹理与采样器](/guides/textures/)
+7. [深度缓冲](/guides/depth/)
+8. [计算着色器](/guides/compute-shaders/)
 
-### GPUBuffer
+## 更多资料
 
-缓冲区资源，用于存储顶点、索引或其他数据。
-
-## 计算相关
-
-### GPUComputePipeline
-
-计算管线对象，用于执行计算着色器。
-
-### GPUBindGroup
-
-资源绑定组，将着色器资源绑定到管线。
-
-## 更多信息
-
-- [WebGPU 官方规范](https://www.w3.org/TR/webgpu/)
-- [WebGPU Explainer](https://gpuweb.github.io/gpuweb/explainer/)
-- [MDN WebGPU 文档](https://developer.mozilla.org/docs/Web/API/WebGPU_API)
+- [WebGPU 规范](https://www.w3.org/TR/webgpu/)
+- [WGSL 规范](https://www.w3.org/TR/WGSL/)
+- [MDN WebGPU API](https://developer.mozilla.org/docs/Web/API/WebGPU_API)
